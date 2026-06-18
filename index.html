@@ -1,0 +1,1567 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RetidosPRO — Controle de Tributos Retidos</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.7.1/jspdf.plugin.autotable.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --primary:#1a237e;--accent:#1565c0;
+  --bg:#f0f2f8;--card:#fff;--text:#1a1a2e;--muted:#6c757d;--border:#e0e0e0;
+  --inp-bg:#fff;--row-alt:#fafafa;--row-hover:#eef3ff;--sb-text:rgba(255,255,255,.85);
+  --sw:258px;--trans:background .25s,color .25s,border-color .25s;
+}
+[data-theme="dark"]{
+  --bg:#0d1117;--card:#161b22;--text:#c9d1d9;--muted:#8b949e;--border:#30363d;
+  --inp-bg:#21262d;--row-alt:#1a1f28;--row-hover:#1f2d45;--sb-text:rgba(255,255,255,.9);
+}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);display:flex;min-height:100vh;transition:var(--trans)}
+
+/* SIDEBAR */
+.sidebar{width:var(--sw);background:linear-gradient(160deg,#1a237e,#0d47a1 55%,#01579b);color:#fff;position:fixed;height:100vh;display:flex;flex-direction:column;z-index:200;transition:width .2s}
+.sb-logo{padding:20px;border-bottom:1px solid rgba(255,255,255,.13);display:flex;align-items:center;gap:10px}
+.sb-logo h1{font-size:1.2rem;font-weight:700;white-space:nowrap}
+.sb-logo span{font-size:.7rem;color:rgba(255,255,255,.6);display:block;margin-top:2px}
+.sb-nav{padding:10px 0;flex:1;overflow-y:auto}
+.nav-label{font-size:.6rem;text-transform:uppercase;letter-spacing:1.5px;color:rgba(255,255,255,.4);padding:14px 20px 4px}
+.nav-btn{display:flex;align-items:center;gap:12px;padding:11px 20px;color:var(--sb-text);cursor:pointer;border:none;border-left:3px solid transparent;background:none;width:100%;text-align:left;font-size:.875rem;transition:all .15s;position:relative}
+.nav-btn:hover{background:rgba(255,255,255,.09);color:#fff}
+.nav-btn.active{background:rgba(255,255,255,.15);border-left-color:#64b5f6;color:#fff;font-weight:600}
+.nav-btn i{width:18px;text-align:center;flex-shrink:0}
+.nav-badge{background:#e53935;color:#fff;font-size:.6rem;font-weight:700;padding:1px 6px;border-radius:10px;margin-left:auto}
+.sb-foot{padding:14px 20px;border-top:1px solid rgba(255,255,255,.12)}
+.sb-foot-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.dark-toggle{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:#fff;border-radius:20px;padding:5px 12px;cursor:pointer;font-size:.75rem;display:flex;align-items:center;gap:6px;transition:background .2s}
+.dark-toggle:hover{background:rgba(255,255,255,.22)}
+.sb-ver{font-size:.65rem;color:rgba(255,255,255,.4)}
+
+/* MAIN */
+.main{margin-left:var(--sw);flex:1;padding:26px;transition:margin .2s}
+.page{display:none}.page.active{display:block;animation:fadeIn .25s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.ph{margin-bottom:20px}
+.ph h2{font-size:1.5rem;font-weight:700;color:var(--primary)}
+.ph p{color:var(--muted);font-size:.85rem;margin-top:3px}
+[data-theme="dark"] .ph h2{color:#90caf9}
+
+/* CARD */
+.card{background:var(--card);border-radius:12px;padding:20px;box-shadow:0 2px 10px rgba(0,0,0,.07);border:1px solid var(--border);transition:var(--trans)}
+
+/* KPI */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(172px,1fr));gap:14px;margin-bottom:20px}
+.kpi{background:var(--card);border-radius:12px;padding:18px;box-shadow:0 2px 8px rgba(0,0,0,.06);border:1px solid var(--border);border-top:4px solid var(--accent);position:relative;overflow:hidden;transition:var(--trans)}
+.kpi.nf{border-top-color:#455a64}.kpi.vl{border-top-color:#1565c0}.kpi.ir{border-top-color:#b71c1c}
+.kpi.iss{border-top-color:#0277bd}.kpi.pis{border-top-color:#2e7d32}.kpi.cofins{border-top-color:#e65100}
+.kpi.csll{border-top-color:#6a1b9a}.kpi.inss{border-top-color:#00695c}.kpi.tot{border-top-color:#37474f}
+.kpi-lbl{font-size:.68rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:6px}
+.kpi-val{font-size:1.25rem;font-weight:700;color:var(--text);transition:color .2s}
+.kpi-sub{font-size:.68rem;color:var(--muted);margin-top:4px}
+.kpi-ico{position:absolute;right:14px;top:14px;font-size:1.5rem;opacity:.1}
+
+/* PERIOD FILTER */
+.period-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px}
+.period-btn{padding:5px 12px;border-radius:20px;border:1.5px solid var(--border);background:var(--card);color:var(--muted);cursor:pointer;font-size:.78rem;font-weight:600;transition:all .15s}
+.period-btn:hover{border-color:var(--accent);color:var(--accent)}
+.period-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+/* CHARTS */
+.charts-row{display:grid;grid-template-columns:300px 1fr;gap:16px;margin-bottom:18px}
+.ch-card{background:var(--card);border-radius:12px;padding:18px;box-shadow:0 2px 8px rgba(0,0,0,.06);border:1px solid var(--border);transition:var(--trans)}
+.ch-card h3{font-size:.83rem;font-weight:600;margin-bottom:12px;color:var(--text)}
+
+/* TABLE */
+.tbar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+.inp{padding:8px 13px;border:1px solid var(--border);border-radius:8px;font-size:.845rem;outline:none;background:var(--inp-bg);color:var(--text);transition:border-color .15s}
+.inp:focus{border-color:var(--accent)}
+.tw{overflow-x:auto;border-radius:8px}
+table{width:100%;border-collapse:collapse;font-size:.78rem}
+th{background:var(--primary);color:#fff;padding:9px 10px;text-align:left;white-space:nowrap;font-size:.7rem;text-transform:uppercase;letter-spacing:.3px;cursor:pointer;user-select:none}
+th:hover{background:#283593}
+td{padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap;color:var(--text);transition:background .1s}
+tr:hover td{background:var(--row-hover);cursor:pointer}
+tr:nth-child(even) td{background:var(--row-alt)}
+tr:nth-child(even):hover td{background:var(--row-hover)}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.tfooter{font-size:.75rem;color:var(--muted);margin-top:8px}
+
+/* BADGES */
+.bdg{padding:2px 8px;border-radius:20px;font-size:.67rem;font-weight:700}
+.bdg-lp{background:#e3f2fd;color:#1565c0}
+.bdg-lr{background:#e8f5e9;color:#2e7d32}
+.bdg-sn{background:#fff3e0;color:#e65100}
+.st-conf{background:#e8f5e9;color:#2e7d32}
+.st-pend{background:#fff3e0;color:#e65100}
+.st-div{background:#ffebee;color:#c62828}
+
+/* BUTTONS */
+.btn{padding:8px 14px;border:none;border-radius:8px;cursor:pointer;font-size:.845rem;font-weight:600;display:inline-flex;align-items:center;gap:7px;transition:all .15s;white-space:nowrap}
+.btn-p{background:var(--accent);color:#fff}.btn-p:hover{background:var(--primary)}
+.btn-g{background:#2e7d32;color:#fff}.btn-g:hover{background:#1b5e20}
+.btn-r{background:#c62828;color:#fff}.btn-r:hover{background:#b71c1c}
+.btn-o{background:#e65100;color:#fff}.btn-o:hover{background:#bf360c}
+.btn-pu{background:#6a1b9a;color:#fff}.btn-pu:hover{background:#4a148c}
+.btn-t{background:#00695c;color:#fff}.btn-t:hover{background:#004d40}
+.btn-out{background:transparent;color:var(--accent);border:1.5px solid var(--accent)}.btn-out:hover{background:var(--accent);color:#fff}
+.btn-sm{padding:5px 11px;font-size:.78rem}
+
+/* STATUS SELECT */
+.st-sel{border:none;border-radius:20px;padding:2px 8px;font-size:.68rem;font-weight:700;cursor:pointer;outline:none}
+
+/* TOOLTIP */
+.tip{position:fixed;background:#1a237e;color:#fff;padding:8px 12px;border-radius:8px;font-size:.75rem;line-height:1.5;pointer-events:none;z-index:9000;display:none;max-width:240px;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+[data-theme="dark"] .tip{background:#283593}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:500;display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px)}
+.modal-overlay.open{display:flex}
+.modal{background:var(--card);border-radius:16px;width:100%;max-width:680px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);transition:var(--trans)}
+.modal-head{background:var(--primary);color:#fff;padding:18px 22px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center}
+.modal-head h3{font-size:1rem;font-weight:700}
+.modal-close{background:rgba(255,255,255,.15);border:none;color:#fff;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center}
+.modal-close:hover{background:rgba(255,255,255,.3)}
+.modal-body{padding:22px}
+.modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.modal-field{margin-bottom:10px}
+.modal-field label{font-size:.68rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);display:block;margin-bottom:3px}
+.modal-field span{font-size:.875rem;font-weight:500;color:var(--text)}
+.modal-chave{font-family:monospace;font-size:.72rem;word-break:break-all;background:var(--inp-bg);padding:8px;border-radius:6px;border:1px solid var(--border);color:var(--text)}
+.modal-tax-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+.tax-box{border-radius:8px;padding:10px;text-align:center}
+.tax-box .tl{font-size:.65rem;text-transform:uppercase;font-weight:700;margin-bottom:4px}
+.tax-box .tv{font-size:.95rem;font-weight:700}
+.tax-ir{background:#ffebee;color:#c62828}
+.tax-iss{background:#e3f2fd;color:#1565c0}
+.tax-pis{background:#e8f5e9;color:#2e7d32}
+.tax-cof{background:#fff3e0;color:#e65100}
+.tax-csll{background:#f3e5f5;color:#6a1b9a}
+.tax-inss{background:#e0f2f1;color:#00695c}
+.tax-tot{background:var(--primary);color:#fff}
+[data-theme="dark"] .tax-ir{background:#3b1a1a}.tax-ir .tl,[data-theme="dark"] .tax-iss{background:#1a2a3b}
+.copy-btn{font-size:.72rem;padding:3px 9px;margin-left:8px;border:1px solid var(--border);border-radius:6px;background:var(--inp-bg);color:var(--muted);cursor:pointer}
+.copy-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+/* XML UPLOAD */
+.xml-zone{border:2.5px dashed var(--border);border-radius:12px;padding:32px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:16px}
+.xml-zone:hover,.xml-zone.drag{border-color:var(--accent);background:var(--row-hover)}
+.xml-zone i{font-size:2.2rem;color:var(--muted);margin-bottom:10px;display:block}
+.xml-zone p{color:var(--muted);font-size:.875rem}
+.xml-zone strong{color:var(--accent)}
+.xml-progress{display:none;margin-top:12px}
+.xml-bar-bg{background:var(--border);border-radius:20px;height:8px;overflow:hidden;margin-top:8px}
+.xml-bar{background:var(--accent);height:100%;width:0%;border-radius:20px;transition:width .05s linear}
+.xml-log{font-size:.78rem;color:var(--muted);margin-top:6px;text-align:left;font-family:monospace;padding:8px;background:var(--inp-bg);border-radius:6px;border:1px solid var(--border);min-height:36px}
+
+/* LEGISLATION */
+.leg-item{border:1px solid var(--border);border-radius:10px;margin-bottom:10px;overflow:hidden}
+.leg-h{padding:13px 18px;background:var(--card);cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:.875rem;transition:background .15s;user-select:none;color:var(--text)}
+.leg-h:hover{background:var(--row-hover)}
+.leg-h i.fa-chevron-down{transition:transform .2s;flex-shrink:0}
+.leg-tag{font-size:.65rem;background:#e3f2fd;color:#1565c0;padding:2px 8px;border-radius:4px;margin-right:8px;font-weight:700}
+.leg-tag.m{background:#e8f5e9;color:#2e7d32}.leg-tag.r{background:#fce4ec;color:#c62828}.leg-tag.i{background:#f3e5f5;color:#6a1b9a}
+.leg-body{padding:16px 20px;background:var(--row-alt);border-top:1px solid var(--border);display:none;font-size:.845rem;line-height:1.75;color:var(--text)}
+.leg-body.open{display:block}
+.leg-body h4{color:var(--accent);margin:10px 0 5px;font-size:.845rem}
+[data-theme="dark"] .leg-body h4{color:#90caf9}
+.leg-body p{margin-bottom:10px}
+.leg-body ul{padding-left:20px;margin-bottom:10px}
+.leg-body li{margin-bottom:3px}
+.tbl-ali{width:100%;border-collapse:collapse;margin-top:10px;font-size:.8rem}
+.tbl-ali th{background:#e3f2fd;color:#1565c0;padding:7px 10px;border:1px solid #bbdefb;font-weight:600}
+[data-theme="dark"] .tbl-ali th{background:#1a2a3b;color:#90caf9;border-color:#30363d}
+.tbl-ali td{border:1px solid var(--border);padding:7px 10px;color:var(--text)}
+.tbl-ali tr:hover td{background:var(--row-hover)}
+.leg-note{background:#fff8e1;border-left:4px solid #fbc02d;padding:10px 14px;border-radius:0 6px 6px 0;margin-top:10px;font-size:.82rem}
+[data-theme="dark"] .leg-note{background:#2a2500;border-color:#f9a825}
+
+/* CONCILIATION */
+.concil-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px}
+.cc{background:var(--card);border-radius:12px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.06);border:1px solid var(--border)}
+.cc h3{font-size:.875rem;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.cc h3.ct{color:#1a237e}.cc h3.fs{color:#1565c0}.cc h3.fn{color:#2e7d32}
+[data-theme="dark"] .cc h3.ct{color:#90caf9}[data-theme="dark"] .cc h3.fs{color:#64b5f6}[data-theme="dark"] .cc h3.fn{color:#a5d6a7}
+.cr{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:.82rem;color:var(--text)}
+.cr:last-child{border-bottom:none;font-weight:700}
+.diff-ok{color:#2e7d32;font-weight:600}.diff-nok{color:#c62828;font-weight:600}.diff-warn{color:#e65100;font-weight:600}
+.sbdg{padding:2px 10px;border-radius:20px;font-size:.68rem;font-weight:700}
+.sbdg-ok{background:#e8f5e9;color:#2e7d32}.sbdg-nok{background:#ffebee;color:#c62828}.sbdg-pend{background:#fff3e0;color:#e65100}
+
+/* REPORTS */
+.rep-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
+.rep-card{background:var(--card);border-radius:12px;padding:22px;box-shadow:0 2px 8px rgba(0,0,0,.06);border:1px solid var(--border);text-align:center;transition:transform .18s,box-shadow .18s}
+.rep-card:hover{transform:translateY(-3px);box-shadow:0 8px 22px rgba(0,0,0,.12)}
+.rep-ico{font-size:2.2rem;margin-bottom:10px}
+.rep-card h3{font-size:.92rem;margin-bottom:6px;color:var(--text)}
+.rep-card p{font-size:.77rem;color:var(--muted);margin-bottom:14px;line-height:1.5}
+
+/* SOBRE */
+.sobre-grid{display:grid;grid-template-columns:2fr 1fr;gap:20px;margin-bottom:20px}
+.tech-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:.78rem;font-weight:600;margin:4px}
+.feature-list li{padding:8px 0;border-bottom:1px solid var(--border);font-size:.875rem;color:var(--text);display:flex;align-items:flex-start;gap:8px}
+.feature-list li:last-child{border-bottom:none}
+.info-box{background:var(--row-alt);border-radius:10px;padding:14px;margin-bottom:12px;border:1px solid var(--border)}
+.info-box h4{font-size:.82rem;font-weight:700;margin-bottom:6px;color:var(--accent)}
+[data-theme="dark"] .info-box h4{color:#90caf9}
+.info-box p{font-size:.82rem;color:var(--text);line-height:1.6}
+
+/* TOAST */
+.toast{position:fixed;bottom:22px;right:22px;background:#1a237e;color:#fff;padding:12px 18px;border-radius:10px;font-size:.875rem;box-shadow:0 4px 18px rgba(0,0,0,.25);z-index:9999;display:none;align-items:center;gap:10px}
+.toast.show{display:flex;animation:slideUp .3s ease}
+@keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:none;opacity:1}}
+
+/* LOGIN */
+.login-screen{position:fixed;inset:0;z-index:2000;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#1a237e 0%,#0d47a1 50%,#01579b 100%)}
+.login-card{background:var(--card);border-radius:20px;width:100%;max-width:900px;display:grid;grid-template-columns:1fr 1fr;box-shadow:0 30px 80px rgba(0,0,0,.4);overflow:hidden;min-height:540px}
+.login-left{background:linear-gradient(160deg,#1a237e,#0288d1);padding:48px 40px;display:flex;flex-direction:column;justify-content:space-between;color:#fff}
+.login-left h1{font-size:1.8rem;font-weight:800;margin-bottom:8px}
+.login-left p{color:rgba(255,255,255,.7);font-size:.875rem;line-height:1.6}
+.login-features{margin-top:24px;list-style:none}
+.login-features li{padding:6px 0;font-size:.82rem;color:rgba(255,255,255,.85);display:flex;align-items:center;gap:8px}
+.login-right{padding:40px}
+.login-right h2{font-size:1.3rem;font-weight:700;margin-bottom:4px;color:var(--text)}
+.login-right p{color:var(--muted);font-size:.82rem;margin-bottom:24px}
+.lf{margin-bottom:16px}
+.lf label{display:block;font-size:.78rem;font-weight:600;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px}
+.lf .inp{width:100%}
+.pass-wrap{position:relative}
+.pass-wrap .inp{width:100%;padding-right:42px}
+.pass-wrap button{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;font-size:.9rem}
+.login-error{background:#ffebee;color:#c62828;border-radius:8px;padding:8px 12px;font-size:.8rem;margin-bottom:12px;display:none}
+.login-error.show{display:block}
+.remember{display:flex;align-items:center;gap:8px;font-size:.82rem;color:var(--muted);margin-bottom:16px;cursor:pointer}
+.demo-accounts{margin-top:20px;border-top:1px solid var(--border);padding-top:16px}
+.demo-accounts p{font-size:.72rem;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+.demo-acc{display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;cursor:pointer;border:1px solid var(--border);margin-bottom:6px;transition:all .15s}
+.demo-acc:hover{background:var(--row-hover);border-color:var(--accent)}
+.demo-acc div{font-size:.8rem;color:var(--text)}
+.demo-acc strong{display:block;font-size:.82rem}
+.demo-acc span.role-tag{font-size:.65rem;color:var(--muted)}
+@media(max-width:640px){.login-card{grid-template-columns:1fr}.login-left{display:none}}
+
+/* AVATAR */
+.avatar{width:34px;height:34px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;color:#fff;flex-shrink:0}
+
+/* SIDEBAR USER BAR */
+.sb-user{padding:12px 20px;border-top:1px solid rgba(255,255,255,.12);display:flex;align-items:center;gap:10px}
+.sb-user-info{flex:1;min-width:0}
+.sb-user-info .uname{font-size:.82rem;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-user-info .urole{font-size:.67rem;color:rgba(255,255,255,.5)}
+.logout-btn{background:rgba(255,255,255,.1);border:none;color:rgba(255,255,255,.7);width:28px;height:28px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s}
+.logout-btn:hover{background:rgba(255,107,107,.4);color:#fff}
+
+/* NOTIFICATIONS */
+.notif-btn{position:relative;background:rgba(255,255,255,.1);border:none;color:rgba(255,255,255,.8);width:28px;height:28px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s;margin-left:auto}
+.notif-btn:hover{background:rgba(255,255,255,.2)}
+.notif-dot{position:absolute;top:-2px;right:-2px;width:8px;height:8px;background:#e53935;border-radius:50%;border:2px solid #1a237e}
+.notif-panel{position:fixed;top:0;right:0;width:340px;height:100vh;background:var(--card);box-shadow:-4px 0 30px rgba(0,0,0,.2);z-index:600;transform:translateX(100%);transition:transform .25s;display:flex;flex-direction:column}
+.notif-panel.open{transform:none}
+.notif-head{background:var(--primary);color:#fff;padding:18px 20px;display:flex;align-items:center;justify-content:space-between}
+.notif-head h3{font-size:1rem;font-weight:700}
+.notif-close{background:none;border:none;color:#fff;font-size:1.1rem;cursor:pointer}
+.notif-list{flex:1;overflow-y:auto;padding:12px}
+.notif-item{padding:12px;border-radius:10px;border:1px solid var(--border);margin-bottom:8px;transition:background .15s;cursor:pointer}
+.notif-item:hover{background:var(--row-hover)}
+.notif-item.unread{border-left:3px solid var(--accent)}
+.notif-item .ni-title{font-size:.845rem;font-weight:600;color:var(--text);margin-bottom:3px}
+.notif-item .ni-body{font-size:.78rem;color:var(--muted);line-height:1.4}
+.notif-item .ni-time{font-size:.68rem;color:var(--muted);margin-top:5px}
+.notif-badge{background:#e53935;color:#fff;font-size:.6rem;font-weight:700;padding:1px 5px;border-radius:10px;margin-left:6px}
+.notif-overlay{position:fixed;inset:0;z-index:599;display:none}
+.notif-overlay.open{display:block}
+
+/* SETTINGS */
+.set-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.set-section{margin-bottom:20px}
+.set-section h3{font-size:.875rem;font-weight:700;margin-bottom:12px;color:var(--text);padding-bottom:6px;border-bottom:1px solid var(--border)}
+.set-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
+.set-row:last-child{border-bottom:none}
+.set-row label{font-size:.845rem;color:var(--text)}
+.set-row span{font-size:.78rem;color:var(--muted)}
+.toggle-sw{position:relative;width:40px;height:22px;cursor:pointer}
+.toggle-sw input{opacity:0;width:0;height:0}
+.toggle-sw .sl{position:absolute;inset:0;background:var(--border);border-radius:20px;transition:.2s}
+.toggle-sw .sl:before{content:'';position:absolute;width:16px;height:16px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+.toggle-sw input:checked+.sl{background:var(--accent)}
+.toggle-sw input:checked+.sl:before{transform:translateX(18px)}
+.role-chip{padding:3px 10px;border-radius:20px;font-size:.7rem;font-weight:700}
+.role-admin{background:#e3f2fd;color:#1565c0}
+.role-fiscal{background:#e8f5e9;color:#2e7d32}
+.role-contabil{background:#f3e5f5;color:#6a1b9a}
+
+/* AUDIT */
+.audit-action-create{color:#2e7d32;font-weight:600}
+.audit-action-edit{color:#e65100;font-weight:600}
+.audit-action-import{color:#1565c0;font-weight:600}
+.audit-action-login{color:#6a1b9a;font-weight:600}
+
+/* TABS */
+.tab-bar{display:flex;border-bottom:2px solid var(--border);margin-bottom:20px;gap:4px}
+.tab-btn{padding:10px 20px;border:none;background:none;color:var(--muted);cursor:pointer;font-size:.875rem;font-weight:600;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .15s;border-radius:6px 6px 0 0}
+.tab-btn:hover{color:var(--accent);background:var(--row-hover)}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);background:var(--row-hover)}
+.tab-pane{display:none}.tab-pane.active{display:block;animation:fadeIn .2s ease}
+
+/* FILTER PILLS */
+.fbar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+.flabel{font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-right:2px;white-space:nowrap}
+.fpill{padding:4px 12px;border-radius:20px;border:1.5px solid var(--border);background:var(--card);color:var(--muted);cursor:pointer;font-size:.76rem;font-weight:600;transition:all .15s}
+.fpill:hover{border-color:var(--accent);color:var(--accent)}
+.fpill.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.fpill.f-conf.active{background:#2e7d32;border-color:#2e7d32}
+.fpill.f-pend.active{background:#e65100;border-color:#e65100}
+.fpill.f-div.active{background:#c62828;border-color:#c62828}
+
+/* REINF */
+.reinf-card{background:var(--card);border-radius:12px;padding:18px;box-shadow:0 2px 8px rgba(0,0,0,.06);border:1px solid var(--border);border-left:4px solid var(--accent);margin-bottom:12px;transition:var(--trans)}
+.reinf-ev{font-size:.72rem;font-weight:700;background:#e3f2fd;color:#1565c0;padding:2px 8px;border-radius:4px;margin-right:8px}
+.reinf-ev.r2010{background:#e0f2f1;color:#00695c}
+.reinf-ev.r2020{background:#f3e5f5;color:#6a1b9a}
+.reinf-ev.r4020{background:#fce4ec;color:#c62828}
+.reinf-ev.r9000{background:#fff3e0;color:#e65100}
+.rst-trans{background:#e8f5e9;color:#2e7d32;padding:2px 10px;border-radius:20px;font-size:.68rem;font-weight:700}
+.rst-pend{background:#fff3e0;color:#e65100;padding:2px 10px;border-radius:20px;font-size:.68rem;font-weight:700}
+.rst-retif{background:#ffebee;color:#c62828;padding:2px 10px;border-radius:20px;font-size:.68rem;font-weight:700}
+.reinf-vals{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
+.rv-box{background:var(--row-alt);border-radius:8px;padding:10px;text-align:center;border:1px solid var(--border)}
+.rv-label{font-size:.65rem;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.rv-val{font-size:.95rem;font-weight:700;color:var(--text)}
+.rv-diff-ok{color:#2e7d32}.rv-diff-nok{color:#c62828}
+
+/* ISS MUNI */
+.iss-summary{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:18px}
+.iss-muni-card{background:var(--card);border-radius:10px;padding:14px;border:1px solid var(--border);border-top:3px solid #0277bd}
+
+/* RESPONSIVE */
+@media(max-width:860px){
+  :root{--sw:60px}
+  .sb-logo h1 span,.sb-logo>span,.nav-btn>span,.nav-label,.sb-ver,.dark-toggle span{display:none}
+  .sb-logo{justify-content:center;padding:14px 10px}.sb-logo h1{font-size:1.1rem}
+  .nav-btn{justify-content:center;padding:14px 10px}
+  .sb-foot-row{justify-content:center}.dark-toggle{padding:6px}
+  .charts-row{grid-template-columns:1fr}.concil-cols{grid-template-columns:1fr}
+  .modal-grid{grid-template-columns:1fr}.sobre-grid{grid-template-columns:1fr}
+}
+@media(max-width:540px){.kpi-grid{grid-template-columns:repeat(2,1fr)}.modal-tax-grid{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-card">
+    <div class="login-left">
+      <div>
+        <h1><i class="fa-solid fa-file-invoice-dollar"></i> RetidosPRO</h1>
+        <p>Sistema completo de controle de tributos retidos na fonte sobre serviços tomados.</p>
+        <ul class="login-features">
+          <li><i class="fa-solid fa-check-circle"></i> IR, ISS, PIS, COFINS, CSLL e INSS</li>
+          <li><i class="fa-solid fa-check-circle"></i> Importação de XML NFS-e</li>
+          <li><i class="fa-solid fa-check-circle"></i> Conciliação Contábil × Fiscal × Financeiro</li>
+          <li><i class="fa-solid fa-check-circle"></i> Relatórios em Excel e PDF</li>
+          <li><i class="fa-solid fa-check-circle"></i> Legislação MAFON completa</li>
+          <li><i class="fa-solid fa-check-circle"></i> Log de auditoria</li>
+        </ul>
+      </div>
+      <div style="font-size:.72rem;color:rgba(255,255,255,.4)">RetidosPRO v2.0 — Dados fictícios para portfólio</div>
+    </div>
+    <div class="login-right">
+      <h2>Bem-vindo de volta</h2>
+      <p>Acesse com suas credenciais corporativas</p>
+      <div class="lf">
+        <label>E-mail corporativo</label>
+        <input class="inp" type="email" id="loginEmail" placeholder="seu@empresa.com.br" autocomplete="email">
+      </div>
+      <div class="lf">
+        <label>Senha</label>
+        <div class="pass-wrap">
+          <input class="inp" type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password">
+          <button type="button" onclick="togglePass()"><i class="fa-solid fa-eye" id="eyeIcon"></i></button>
+        </div>
+      </div>
+      <label class="remember"><input type="checkbox" id="rememberMe"> Lembrar meu acesso</label>
+      <div class="login-error" id="loginError"><i class="fa-solid fa-triangle-exclamation"></i> E-mail ou senha incorretos.</div>
+      <button class="btn btn-p" style="width:100%;justify-content:center;padding:11px" onclick="doLogin()">
+        <i class="fa-solid fa-right-to-bracket"></i> Entrar
+      </button>
+      <div class="demo-accounts">
+        <p>Contas de demonstração — clique para preencher</p>
+        <div class="demo-acc" onclick="fillLogin('diego.fiscal.am@gmail.com','Curitib@2026')">
+          <span class="avatar" style="background:#1565c0">DF</span>
+          <div><strong>Diego Fiscal</strong><span class="role-tag">Administrador — acesso total</span></div>
+        </div>
+        <div class="demo-acc" onclick="fillLogin('ana.lima@empresa.com.br','Fiscal@2024')">
+          <span class="avatar" style="background:#2e7d32">AL</span>
+          <div><strong>Ana Lima</strong><span class="role-tag">Analista Fiscal — sem Conciliação</span></div>
+        </div>
+        <div class="demo-acc" onclick="fillLogin('carlos@empresa.com.br','Contab@2024')">
+          <span class="avatar" style="background:#6a1b9a">CS</span>
+          <div><strong>Carlos Souza</strong><span class="role-tag">Contador — sem Notas/Legislação</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sb-logo">
+    <h1><i class="fa-solid fa-file-invoice-dollar"></i> <span>RetidosPRO</span></h1>
+    <span>Controle de Tributos Retidos</span>
+  </div>
+  <nav class="sb-nav">
+    <div class="nav-label">Principal</div>
+    <button class="nav-btn active" onclick="nav('dashboard',this)"><i class="fa-solid fa-gauge-high"></i><span>Dashboard</span></button>
+    <button class="nav-btn" onclick="nav('notas',this)"><i class="fa-solid fa-file-invoice"></i><span>Notas Fiscais</span></button>
+    <div class="nav-label">Apoio</div>
+    <button class="nav-btn" onclick="nav('legislacao',this)"><i class="fa-solid fa-scale-balanced"></i><span>Legislação MAFON</span></button>
+    <div class="nav-label">Gestão</div>
+    <button class="nav-btn" id="navRel" onclick="nav('relatorios',this)">
+      <i class="fa-solid fa-chart-bar"></i><span>Relatórios</span>
+      <span class="nav-badge" id="darfBadge" style="display:none">2</span>
+    </button>
+    <button class="nav-btn" onclick="nav('conciliacao',this)"><i class="fa-solid fa-arrows-rotate"></i><span>Conciliação</span></button>
+    <div class="nav-label">Sistema</div>
+    <button class="nav-btn" onclick="nav('configuracoes',this)"><i class="fa-solid fa-gear"></i><span>Configurações</span></button>
+    <button class="nav-btn" onclick="nav('auditoria',this)"><i class="fa-solid fa-shield-halved"></i><span>Auditoria</span></button>
+    <button class="nav-btn" onclick="nav('sobre',this)"><i class="fa-solid fa-circle-info"></i><span>Sobre o Projeto</span></button>
+  </nav>
+  <div class="sb-foot">
+    <div class="sb-foot-row" style="margin-bottom:8px">
+      <button class="dark-toggle" onclick="toggleDark()"><i class="fa-solid fa-moon" id="darkIcon"></i><span>Modo Escuro</span></button>
+      <button class="notif-btn" onclick="openNotif()" title="Notificações">
+        <i class="fa-solid fa-bell"></i>
+        <span class="notif-dot" id="notifDot"></span>
+      </button>
+    </div>
+  </div>
+  <div class="sb-user" id="sbUser">
+    <span class="avatar" id="userAvatar" style="background:#1565c0">?</span>
+    <div class="sb-user-info">
+      <div class="uname" id="userName">—</div>
+      <div class="urole" id="userRole">—</div>
+    </div>
+    <button class="logout-btn" onclick="doLogout()" title="Sair"><i class="fa-solid fa-right-from-bracket"></i></button>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+
+<!-- DASHBOARD -->
+<section class="page active" id="dashboard">
+  <div class="ph">
+    <h2><i class="fa-solid fa-gauge-high" style="color:var(--accent);font-size:1.1rem"></i> Dashboard</h2>
+    <p>Tributos retidos na fonte — visão consolidada do período</p>
+  </div>
+  <div class="period-bar" id="periodBar"></div>
+  <div class="fbar" style="margin-top:-10px">
+    <span class="flabel">Regime:</span>
+    <button class="fpill active" onclick="filterDashRegime('',this)">Todos</button>
+    <button class="fpill" onclick="filterDashRegime('Lucro Presumido',this)">Lucro Presumido</button>
+    <button class="fpill" onclick="filterDashRegime('Lucro Real',this)">Lucro Real</button>
+    <button class="fpill" onclick="filterDashRegime('Simples Nacional',this)">Simples Nacional</button>
+  </div>
+  <div class="kpi-grid">
+    <div class="kpi nf"><div class="kpi-lbl">Total de NFs</div><div class="kpi-val" id="kNF">—</div><div class="kpi-sub">Notas processadas</div><i class="fa-solid fa-file-lines kpi-ico"></i></div>
+    <div class="kpi vl"><div class="kpi-lbl">Valor Serviços</div><div class="kpi-val" id="kVL">—</div><div class="kpi-sub">Bruto acumulado</div><i class="fa-solid fa-sack-dollar kpi-ico"></i></div>
+    <div class="kpi ir"><div class="kpi-lbl">IR Retido</div><div class="kpi-val" id="kIR">—</div><i class="fa-solid fa-percent kpi-ico"></i></div>
+    <div class="kpi iss"><div class="kpi-lbl">ISS Retido</div><div class="kpi-val" id="kISS">—</div><i class="fa-solid fa-building-columns kpi-ico"></i></div>
+    <div class="kpi pis"><div class="kpi-lbl">PIS Retido</div><div class="kpi-val" id="kPIS">—</div><i class="fa-solid fa-coins kpi-ico"></i></div>
+    <div class="kpi cofins"><div class="kpi-lbl">COFINS Retida</div><div class="kpi-val" id="kCOF">—</div><i class="fa-solid fa-coins kpi-ico"></i></div>
+    <div class="kpi csll"><div class="kpi-lbl">CSLL Retida</div><div class="kpi-val" id="kCSLL">—</div><i class="fa-solid fa-coins kpi-ico"></i></div>
+    <div class="kpi inss"><div class="kpi-lbl">INSS Retido</div><div class="kpi-val" id="kINSS">—</div><i class="fa-solid fa-shield kpi-ico"></i></div>
+    <div class="kpi tot"><div class="kpi-lbl">Total Retido</div><div class="kpi-val" id="kTOT">—</div><i class="fa-solid fa-landmark kpi-ico"></i></div>
+  </div>
+  <div class="charts-row">
+    <div class="ch-card"><h3><i class="fa-solid fa-chart-pie"></i> Distribuição por Tributo</h3><canvas id="cPie"></canvas></div>
+    <div class="ch-card"><h3><i class="fa-solid fa-chart-column"></i> Retenções Mensais por Tributo</h3><canvas id="cBar" height="150"></canvas></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px">
+    <div class="ch-card"><h3><i class="fa-solid fa-chart-line"></i> Evolução: Valor Bruto vs Retido</h3><canvas id="cLine" height="120"></canvas></div>
+    <div class="ch-card"><h3><i class="fa-solid fa-trophy"></i> Top 5 Prestadores por Retenção</h3><canvas id="cTop" height="120"></canvas></div>
+  </div>
+</section>
+
+<!-- NOTAS -->
+<section class="page" id="notas">
+  <div class="ph">
+    <h2><i class="fa-solid fa-file-invoice" style="color:var(--accent);font-size:1.1rem"></i> Notas Fiscais de Serviços</h2>
+    <p>NFS-e processadas via XML — clique em uma linha para ver o detalhe completo</p>
+  </div>
+
+  <!-- XML UPLOAD -->
+  <div class="card" style="margin-bottom:16px">
+    <h3 style="font-size:.875rem;font-weight:700;margin-bottom:12px;color:var(--text)"><i class="fa-solid fa-file-code" style="color:var(--accent)"></i> Importar XML de NFS-e</h3>
+    <div class="xml-zone" id="xmlZone" onclick="document.getElementById('xmlInput').click()" ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dropXML(event)">
+      <i class="fa-solid fa-cloud-arrow-up"></i>
+      <p><strong>Clique aqui</strong> ou arraste um arquivo XML de NFS-e para importar</p>
+      <p style="font-size:.75rem;margin-top:4px">Formatos suportados: .xml — Modelo NFS-e padrão ABRASF</p>
+    </div>
+    <input type="file" id="xmlInput" accept=".xml" style="display:none" onchange="processXML(this)">
+    <div class="xml-progress" id="xmlProgress">
+      <div id="xmlLog" class="xml-log">Aguardando arquivo...</div>
+      <div class="xml-bar-bg"><div class="xml-bar" id="xmlBar"></div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="tbar">
+      <input class="inp" style="flex:1;min-width:160px" placeholder="🔍  Pesquisar prestador, CNPJ, número..." oninput="filterNotas(this.value)">
+      <select class="inp" style="max-width:165px" onchange="filterRegime(this.value)">
+        <option value="">Todos os regimes</option>
+        <option>Lucro Presumido</option><option>Lucro Real</option><option>Simples Nacional</option>
+      </select>
+      <select class="inp" style="max-width:130px" onchange="filterMes(this.value)">
+        <option value="">Todos os meses</option>
+        <option value="0">Janeiro</option><option value="1">Fevereiro</option><option value="2">Março</option>
+        <option value="3">Abril</option><option value="4">Maio</option><option value="5">Junho</option>
+      </select>
+      <button class="btn btn-g btn-sm" onclick="exportExcel()"><i class="fa-solid fa-file-excel"></i> Excel</button>
+      <button class="btn btn-r btn-sm" onclick="exportPDFNotas()"><i class="fa-solid fa-file-pdf"></i> PDF</button>
+    </div>
+    <div class="fbar">
+      <span class="flabel">Status:</span>
+      <button class="fpill active" onclick="filterStatus('',this)">Todas</button>
+      <button class="fpill f-conf" onclick="filterStatus('Conferida',this)">Conferida</button>
+      <button class="fpill f-pend" onclick="filterStatus('Pendente',this)">Pendente</button>
+      <button class="fpill f-div" onclick="filterStatus('Divergência',this)">Divergência</button>
+      <span class="flabel" style="margin-left:10px">Tributo retido:</span>
+      <button class="fpill" onclick="filterTributo('inss',this)">Tem INSS</button>
+      <button class="fpill" onclick="filterTributo('iss',this)">Tem ISS</button>
+      <button class="fpill" onclick="filterTributo('ir',this)">Tem IR</button>
+      <button class="fpill active" id="fpTribAll" onclick="filterTributo('',this)">Limpar</button>
+    </div>
+    <div class="tw">
+      <table>
+        <thead>
+          <tr>
+            <th>Nº NF</th><th>Emissão</th><th>Prestador</th><th>CNPJ</th>
+            <th>CNAE</th><th>Cód.</th><th>Regime</th>
+            <th class="num" data-tip="Valor bruto do serviço prestado">Vl. Serviço</th>
+            <th class="num" data-tip="IR: 1,5% — IN RFB 1.234/2012">IR</th>
+            <th class="num" data-tip="ISS: 2% a 5% — LC 116/2003">ISS</th>
+            <th class="num" data-tip="PIS: 0,65% — Lei 10.833/2003">PIS</th>
+            <th class="num" data-tip="COFINS: 3% — Lei 10.833/2003">COFINS</th>
+            <th class="num" data-tip="CSLL: 1% — Lei 10.833/2003">CSLL</th>
+            <th class="num" data-tip="INSS: 11% cessão — Lei 8.212/1991">INSS</th>
+            <th class="num">Total Ret.</th>
+            <th class="num">Líquido</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="notasBody"></tbody>
+      </table>
+    </div>
+    <div class="tfooter" id="notasCount"></div>
+  </div>
+</section>
+
+<!-- LEGISLAÇÃO -->
+<section class="page" id="legislacao">
+  <div class="ph">
+    <h2><i class="fa-solid fa-scale-balanced" style="color:var(--accent);font-size:1.1rem"></i> Legislação MAFON</h2>
+    <p>Manual das Fontes de Retenção — alíquotas, fundamentos legais e orientações práticas</p>
+  </div>
+  <div style="background:#e8f0fe;border-left:5px solid var(--accent);border-radius:0 10px 10px 0;padding:13px 17px;margin-bottom:18px;font-size:.845rem;line-height:1.65;color:var(--text)">
+    [data-theme="dark"]<strong>O que é o MAFON?</strong> O Manual das Fontes de Retenção consolida a legislação federal e municipal sobre retenções tributárias na fonte, orientando o tomador de serviços quanto às obrigações de reter IR, CSLL, PIS, COFINS, ISS e INSS sobre pagamentos a prestadores.
+  </div>
+
+  <div class="leg-item">
+    <div class="leg-h" onclick="toggleLeg(this)"><span><span class="leg-tag r">FEDERAL</span>Imposto de Renda Retido na Fonte — IRRF</span><i class="fa-solid fa-chevron-down"></i></div>
+    <div class="leg-body">
+      <h4>Fundamento Legal</h4><p>Art. 647 a 651 do RIR/2018 (Decreto 9.580/2018). IN RFB 1.234/2012. Lei 7.450/1985, art. 52.</p>
+      <h4>Alíquotas por Serviço</h4>
+      <table class="tbl-ali"><tr><th>Serviço</th><th>Alíquota</th><th>DARF</th></tr>
+        <tr><td>Serviços profissionais / assessoria / consultoria / TI</td><td>1,5%</td><td>6147</td></tr>
+        <tr><td>Limpeza, conservação, manutenção e locação de mão de obra</td><td>1,0%</td><td>6190</td></tr>
+        <tr><td>Propaganda e publicidade</td><td>1,5%</td><td>6160</td></tr>
+        <tr><td>Transporte de cargas</td><td>1,0%</td><td>0422</td></tr>
+        <tr><td>Segurança e vigilância</td><td>1,0%</td><td>6190</td></tr>
+      </table>
+      <h4>Dispensa</h4><ul><li>Optantes pelo Simples Nacional (art. 3.º, § 3.º, IN RFB 1.234/12)</li><li>Valores inferiores a R$ 666,66 no mês (verificar acumulado)</li></ul>
+      <div class="leg-note">⚠️ Retenções de IR, CSLL, PIS e COFINS são efetuadas conjuntamente quando o valor for ≥ R$ 5.000,00 por nota (art. 2.º IN RFB 1.234/2012).</div>
+    </div>
+  </div>
+
+  <div class="leg-item">
+    <div class="leg-h" onclick="toggleLeg(this)"><span><span class="leg-tag r">FEDERAL</span>CSLL / PIS / COFINS — Retenção Conjunta (4,65%)</span><i class="fa-solid fa-chevron-down"></i></div>
+    <div class="leg-body">
+      <h4>Fundamento Legal</h4><p>Art. 30 a 33 da Lei 10.833/2003. IN SRF 459/2004. IN RFB 1.234/2012.</p>
+      <table class="tbl-ali"><tr><th>Tributo</th><th>Alíquota</th><th>DARF</th></tr>
+        <tr><td>CSLL</td><td>1,00%</td><td>5987</td></tr>
+        <tr><td>PIS/Pasep</td><td>0,65%</td><td>5960</td></tr>
+        <tr><td>COFINS</td><td>3,00%</td><td>5952</td></tr>
+        <tr><td><strong>Total</strong></td><td><strong>4,65%</strong></td><td>—</td></tr>
+      </table>
+      <h4>Dispensa</h4><ul><li>Optantes do Simples Nacional (LC 123/2006, art. 13, § 1.º)</li><li>Pagamentos inferiores a R$ 5.000,00 por NF (acumula no mês por CNPJ)</li></ul>
+    </div>
+  </div>
+
+  <div class="leg-item">
+    <div class="leg-h" onclick="toggleLeg(this)"><span><span class="leg-tag m">MUNICIPAL</span>ISS Retido — LC 116/2003</span><i class="fa-solid fa-chevron-down"></i></div>
+    <div class="leg-body">
+      <h4>Fundamento Legal</h4><p>Lei Complementar 116/2003, art. 6.º. Alíquota mínima 2% e máxima 5% (LC 157/2016).</p>
+      <table class="tbl-ali"><tr><th>Serviço (LC 116/03)</th><th>Item</th><th>Alíquota Típica</th></tr>
+        <tr><td>Desenvolvimento de software</td><td>1.01 / 1.05</td><td>2% – 5%</td></tr>
+        <tr><td>Consultoria</td><td>17.01</td><td>5%</td></tr>
+        <tr><td>Limpeza e conservação</td><td>7.10</td><td>3%</td></tr>
+        <tr><td>Segurança e vigilância</td><td>11.02</td><td>5%</td></tr>
+        <tr><td>Publicidade e propaganda</td><td>17.06</td><td>3%</td></tr>
+        <tr><td>Engenharia / construção civil</td><td>7.02</td><td>3%</td></tr>
+        <tr><td>RH e recrutamento</td><td>17.05</td><td>5%</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="leg-item">
+    <div class="leg-h" onclick="toggleLeg(this)"><span><span class="leg-tag i">PREV</span>INSS — Cessão de Mão de Obra (Art. 31, Lei 8.212/91)</span><i class="fa-solid fa-chevron-down"></i></div>
+    <div class="leg-body">
+      <h4>Alíquota</h4><p>11% sobre o valor bruto da NF para serviços de <strong>cessão de mão de obra</strong> ou empreitada. IN RFB 971/2009, art. 117.</p>
+      <h4>Serviços Sujeitos à Retenção</h4>
+      <ul><li>Limpeza, conservação e zeladoria</li><li>Vigilância e segurança</li><li>Construção civil e engenharia</li><li>Suporte técnico e TI com cessão</li><li>Facilities e gestão predial</li><li>Jardinagem e paisagismo</li><li>RH / cessão de trabalhadores</li></ul>
+      <h4>Serviços Não Sujeitos</h4><ul><li>Transporte de cargas</li><li>Advocacia e contabilidade (sem cessão)</li><li>Treinamento e propaganda</li></ul>
+      <div class="leg-note">⚠️ Simples Nacional: retenção de 11% é mantida para cessão de mão de obra (art. 191, IN RFB 971/2009).</div>
+    </div>
+  </div>
+
+  <div class="leg-item">
+    <div class="leg-h" onclick="toggleLeg(this)"><span><span class="leg-tag m">REGIME</span>Simples Nacional — Regras de Retenção (LC 123/2006)</span><i class="fa-solid fa-chevron-down"></i></div>
+    <div class="leg-body">
+      <table class="tbl-ali"><tr><th>Tributo</th><th>Simples Nacional</th><th>Observação</th></tr>
+        <tr><td>IR / CSLL / PIS / COFINS</td><td style="color:#2e7d32;font-weight:700">Dispensado</td><td>Incluídos no DAS</td></tr>
+        <tr><td>ISS</td><td style="color:#e65100;font-weight:700">Pode ser retido</td><td>Conforme lei municipal</td></tr>
+        <tr><td>INSS (cessão)</td><td style="color:#c62828;font-weight:700">Retido normalmente</td><td>Art. 191 IN RFB 971/2009</td></tr>
+      </table>
+      <div class="leg-note">📌 Exigir do prestador Simples a declaração de opção conforme Anexo I da IN RFB 1.234/2012.</div>
+    </div>
+  </div>
+
+  <div class="leg-item">
+    <div class="leg-h" onclick="toggleLeg(this)"><span><span class="leg-tag r">OBRIG</span>Obrigações Acessórias — DCTF / DCTFWeb / DIRF</span><i class="fa-solid fa-chevron-down"></i></div>
+    <div class="leg-body">
+      <h4>DCTF</h4><p>Mensal. Informa débitos de IR, CSLL, PIS e COFINS retidos. Prazo: 15.º dia útil do 2.º mês seguinte (IN RFB 1.599/2015).</p>
+      <h4>DCTFWeb</h4><p>Substitui a GFIP para o INSS. Gerada via eSocial. Prazo: dia 15 do mês seguinte. Recolhimento via DARF numerado.</p>
+      <h4>DIRF</h4><p>Anual. Informa todos os pagamentos com IR retido. Prazo: último dia útil de fevereiro do ano seguinte.</p>
+    </div>
+  </div>
+</section>
+
+<!-- RELATÓRIOS -->
+<section class="page" id="relatorios">
+  <div class="ph">
+    <h2><i class="fa-solid fa-chart-bar" style="color:var(--accent);font-size:1.1rem"></i> Relatórios</h2>
+    <p>Exportação em Excel e PDF para análise, auditoria e prestação de contas</p>
+  </div>
+
+  <div style="background:#ffebee;border-left:5px solid #c62828;border-radius:0 10px 10px 0;padding:12px 16px;margin-bottom:18px;font-size:.845rem;color:var(--text);display:flex;align-items:center;gap:10px">
+    <i class="fa-solid fa-triangle-exclamation" style="color:#c62828;font-size:1.2rem"></i>
+    <span><strong>Atenção:</strong> 2 DARFs com vencimento nos próximos 5 dias — PIS (20/07) e ISS (15/07). Verifique a situação antes do prazo.</span>
+  </div>
+
+  <div class="rep-grid" style="margin-bottom:20px">
+    <div class="rep-card"><div class="rep-ico" style="color:#2e7d32"><i class="fa-solid fa-file-excel"></i></div><h3>Planilha Completa</h3><p>Todas as NFs com todos os campos e tributos retidos (.xlsx)</p><button class="btn btn-g" onclick="exportExcel()"><i class="fa-solid fa-download"></i> Excel</button></div>
+    <div class="rep-card"><div class="rep-ico" style="color:#c62828"><i class="fa-solid fa-file-pdf"></i></div><h3>Relatório de NFs</h3><p>PDF com relação completa das NFS-e, prestadores e retenções</p><button class="btn btn-r" onclick="exportPDFNotas()"><i class="fa-solid fa-download"></i> PDF</button></div>
+    <div class="rep-card"><div class="rep-ico" style="color:#e65100"><i class="fa-solid fa-file-excel"></i></div><h3>Conciliação Excel</h3><p>Comparativo entre contabilidade, fiscal e financeiro</p><button class="btn btn-o" onclick="exportExcelConcil()"><i class="fa-solid fa-download"></i> Excel</button></div>
+    <div class="rep-card"><div class="rep-ico" style="color:#6a1b9a"><i class="fa-solid fa-file-pdf"></i></div><h3>Relatório Gerencial</h3><p>PDF executivo com resumo e análise dos tributos retidos</p><button class="btn btn-pu" onclick="exportPDFGerencial()"><i class="fa-solid fa-download"></i> PDF</button></div>
+    <div class="rep-card"><div class="rep-ico" style="color:#00695c"><i class="fa-solid fa-file-excel"></i></div><h3>Por Prestador</h3><p>Agrupado por CNPJ — total pago, retido e % de retenção</p><button class="btn btn-t" onclick="exportExcelPrestador()"><i class="fa-solid fa-download"></i> Excel</button></div>
+    <div class="rep-card"><div class="rep-ico" style="color:#1565c0"><i class="fa-solid fa-file-pdf"></i></div><h3>DARFs a Recolher</h3><p>PDF com valores, códigos e vencimentos de cada DARF</p><button class="btn btn-p" onclick="exportPDFDarf()"><i class="fa-solid fa-download"></i> PDF</button></div>
+  </div>
+
+  <div class="card">
+    <h3 style="font-size:.875rem;font-weight:700;margin-bottom:12px;color:var(--text)"><i class="fa-solid fa-table"></i> DARFs a Recolher — Competência Jun/2024</h3>
+    <div class="tw"><table id="darfTable"><thead><tr><th>Tributo</th><th>Código DARF</th><th class="num">Base de Cálculo</th><th class="num">Alíquota</th><th class="num">Valor DARF</th><th>Vencimento</th><th>Situação</th></tr></thead><tbody id="darfBody"></tbody></table></div>
+  </div>
+</section>
+
+<!-- CONCILIAÇÃO -->
+<section class="page" id="conciliacao">
+  <div class="ph">
+    <h2><i class="fa-solid fa-arrows-rotate" style="color:var(--accent);font-size:1.1rem"></i> Conciliação Tributária</h2>
+    <p>Comparativo entre Contabilidade × Fiscal × Financeiro — identificação de divergências</p>
+  </div>
+  <div class="concil-cols">
+    <div class="cc"><h3 class="ct"><i class="fa-solid fa-book"></i> Contabilidade</h3>
+      <div class="cr"><span>IR Provisionado</span><span id="ctIR">—</span></div>
+      <div class="cr"><span>ISS Provisionado</span><span id="ctISS">—</span></div>
+      <div class="cr"><span>PIS Provisionado</span><span id="ctPIS">—</span></div>
+      <div class="cr"><span>COFINS Provisionada</span><span id="ctCOF">—</span></div>
+      <div class="cr"><span>CSLL Provisionada</span><span id="ctCSLL">—</span></div>
+      <div class="cr"><span>INSS Provisionado</span><span id="ctINSS">—</span></div>
+      <div class="cr"><span>Total Provisionado</span><span id="ctTOT">—</span></div>
+    </div>
+    <div class="cc"><h3 class="fs"><i class="fa-solid fa-file-invoice-dollar"></i> Fiscal (DCTF/DCTFWeb)</h3>
+      <div class="cr"><span>IR Declarado</span><span id="fsIR">—</span></div>
+      <div class="cr"><span>ISS Declarado</span><span id="fsISS">—</span></div>
+      <div class="cr"><span>PIS Declarado</span><span id="fsPIS">—</span></div>
+      <div class="cr"><span>COFINS Declarada</span><span id="fsCOF">—</span></div>
+      <div class="cr"><span>CSLL Declarada</span><span id="fsCSLL">—</span></div>
+      <div class="cr"><span>INSS Declarado</span><span id="fsINSS">—</span></div>
+      <div class="cr"><span>Total Declarado</span><span id="fsTOT">—</span></div>
+    </div>
+    <div class="cc"><h3 class="fn"><i class="fa-solid fa-money-bill-wave"></i> Financeiro (Pagamentos)</h3>
+      <div class="cr"><span>IR Pago (DARF)</span><span id="fnIR">—</span></div>
+      <div class="cr"><span>ISS Pago (Guia)</span><span id="fnISS">—</span></div>
+      <div class="cr"><span>PIS Pago (DARF)</span><span id="fnPIS">—</span></div>
+      <div class="cr"><span>COFINS Paga (DARF)</span><span id="fnCOF">—</span></div>
+      <div class="cr"><span>CSLL Paga (DARF)</span><span id="fnCSLL">—</span></div>
+      <div class="cr"><span>INSS Pago (GPS)</span><span id="fnINSS">—</span></div>
+      <div class="cr"><span>Total Pago</span><span id="fnTOT">—</span></div>
+    </div>
+  </div>
+  <div class="card">
+    <h3 style="font-size:.875rem;font-weight:700;margin-bottom:12px;color:var(--text)"><i class="fa-solid fa-triangle-exclamation"></i> Análise de Divergências</h3>
+    <div class="tw"><table><thead><tr><th>Tributo</th><th class="num">Contabilidade</th><th class="num">Fiscal</th><th class="num">Financeiro</th><th class="num">Dif. Cont×Fisc</th><th class="num">Dif. Fisc×Fin</th><th>Status</th></tr></thead><tbody id="concilBody"></tbody></table></div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:.82rem">
+      <div style="display:flex;align-items:center;gap:8px"><span class="sbdg sbdg-ok">OK</span> Valores conciliados nas três áreas</div>
+      <div style="display:flex;align-items:center;gap:8px"><span class="sbdg sbdg-pend">PENDENTE</span> Diferença fiscal × financeiro (pagamento em aberto)</div>
+      <div style="display:flex;align-items:center;gap:8px"><span class="sbdg sbdg-nok">DIVERGÊNCIA</span> Inconsistência contábil × fiscal (requer revisão)</div>
+    </div>
+  </div>
+</section>
+
+<!-- SOBRE -->
+<section class="page" id="sobre">
+  <div class="ph">
+    <h2><i class="fa-solid fa-circle-info" style="color:var(--accent);font-size:1.1rem"></i> Sobre o Projeto</h2>
+    <p>RetidosPRO — Sistema de Controle de Tributos Retidos na Fonte</p>
+  </div>
+  <div class="sobre-grid">
+    <div>
+      <div class="card" style="margin-bottom:14px">
+        <h3 style="font-size:1rem;font-weight:700;margin-bottom:12px;color:var(--text)"><i class="fa-solid fa-bullseye" style="color:var(--accent)"></i> Objetivo do Projeto</h3>
+        <p style="font-size:.875rem;line-height:1.75;color:var(--text)">O <strong>RetidosPRO</strong> é um sistema web desenvolvido para automatizar o controle das retenções tributárias na fonte incidentes sobre pagamentos de serviços por pessoas jurídicas. O sistema lê os XMLs das Notas Fiscais de Serviços Eletrônicas (NFS-e), identifica automaticamente os tributos aplicáveis (IR, ISS, PIS, COFINS, CSLL e INSS) com base no regime tributário do prestador, código do serviço e CNAE, e gera relatórios gerenciais e de conciliação entre as áreas de Contabilidade, Fiscal e Financeiro.</p>
+      </div>
+      <div class="card" style="margin-bottom:14px">
+        <h3 style="font-size:1rem;font-weight:700;margin-bottom:12px;color:var(--text)"><i class="fa-solid fa-code" style="color:var(--accent)"></i> Stack Tecnológica</h3>
+        <div style="margin-bottom:8px">
+          <span class="tech-badge" style="background:#fff3e0;color:#e65100"><i class="fa-brands fa-html5"></i> HTML5</span>
+          <span class="tech-badge" style="background:#e3f2fd;color:#1565c0"><i class="fa-brands fa-css3-alt"></i> CSS3</span>
+          <span class="tech-badge" style="background:#fffde7;color:#f9a825"><i class="fa-brands fa-js"></i> JavaScript ES6+</span>
+          <span class="tech-badge" style="background:#fce4ec;color:#c62828"><i class="fa-solid fa-chart-pie"></i> Chart.js 4</span>
+          <span class="tech-badge" style="background:#e8f5e9;color:#2e7d32"><i class="fa-solid fa-file-excel"></i> SheetJS</span>
+          <span class="tech-badge" style="background:#ffebee;color:#c62828"><i class="fa-solid fa-file-pdf"></i> jsPDF</span>
+          <span class="tech-badge" style="background:#f3e5f5;color:#6a1b9a"><i class="fa-solid fa-icons"></i> Font Awesome 6</span>
+        </div>
+        <p style="font-size:.8rem;color:var(--muted);margin-top:8px">Zero frameworks, zero dependências de build. Arquivo HTML único — abre diretamente no navegador.</p>
+      </div>
+      <div class="card">
+        <h3 style="font-size:1rem;font-weight:700;margin-bottom:12px;color:var(--text)"><i class="fa-solid fa-list-check" style="color:var(--accent)"></i> Funcionalidades</h3>
+        <ul class="feature-list" style="list-style:none">
+          <li><i class="fa-solid fa-check" style="color:#2e7d32;margin-top:2px"></i> Dashboard com KPIs animados e 4 gráficos interativos</li>
+          <li><i class="fa-solid fa-check" style="color:#2e7d32;margin-top:2px"></i> Importação simulada de XML de NFS-e com barra de progresso</li>
+          <li><i class="fa-solid fa-check" style="color:#2e7d32;margin-top:2px"></i> Tabela de notas fiscais com filtros, status e modal de detalhe</li>
+          <li><i class="fa-solid fa-check" style="color:#2e7d32;margin-top:2px"></i> MAFON — legislação completa de IR, ISS, PIS, COFINS, CSLL, INSS</li>
+          <li><i class="fa-solid fa-check" style="color:#2e7d32;margin-top:2px"></i> Conciliação automática Contabilidade × Fiscal × Financeiro</li>
+          <li><i class="fa-solid fa-check" style="color:#2e7d32;margin-top:2px"></i> 6 tipos de exportação (Excel e PDF)</li>
+          <li><i class="fa-solid fa-check" style="color:#2e7d32;margin-top:2px"></i> Dark mode com transição suave</li>
+          <li><i class="fa-solid fa-check" style="color:#2e7d32;margin-top:2px"></i> Filtro por período no dashboard</li>
+          <li><i class="fa-solid fa-check" style="color:#2e7d32;margin-top:2px"></i> Alerta de DARFs a vencer</li>
+          <li><i class="fa-solid fa-check" style="color:#2e7d32;margin-top:2px"></i> 100% responsivo</li>
+        </ul>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom:14px">
+        <h3 style="font-size:1rem;font-weight:700;margin-bottom:12px;color:var(--text)"><i class="fa-solid fa-scale-balanced" style="color:var(--accent)"></i> Legislação Coberta</h3>
+        <div class="info-box"><h4>Âmbito Federal</h4><p>IN RFB 1.234/2012 · RIR/2018 (Decreto 9.580) · Lei 10.833/2003, art. 30-33 · IN SRF 459/2004 · Lei 8.212/1991, art. 31 · IN RFB 971/2009 · LC 123/2006</p></div>
+        <div class="info-box"><h4>Âmbito Municipal</h4><p>Lei Complementar 116/2003 · LC 157/2016 (alíquota mínima ISS 2%)</p></div>
+        <div class="info-box"><h4>Obrigações Acessórias</h4><p>DCTF · DCTFWeb (eSocial) · DIRF · EFD-Contribuições · GPS (código 2631)</p></div>
+      </div>
+      <div class="card" style="margin-bottom:14px">
+        <h3 style="font-size:1rem;font-weight:700;margin-bottom:12px;color:var(--text)"><i class="fa-solid fa-chart-simple" style="color:var(--accent)"></i> Dados do Período</h3>
+        <div style="font-size:.82rem;color:var(--text)">
+          <div class="cr"><span>Período analisado</span><strong>Jan – Jun / 2024</strong></div>
+          <div class="cr"><span>Notas fiscais</span><strong id="sobreNF">17</strong></div>
+          <div class="cr"><span>Prestadores únicos</span><strong>17</strong></div>
+          <div class="cr"><span>Valor total serviços</span><strong id="sobreVL">—</strong></div>
+          <div class="cr"><span>Total retido</span><strong id="sobreTOT">—</strong></div>
+          <div class="cr"><span>% médio de retenção</span><strong id="sobrePCT">—</strong></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3 style="font-size:1rem;font-weight:700;margin-bottom:10px;color:var(--text)"><i class="fa-solid fa-triangle-exclamation" style="color:#f57f17"></i> Aviso Legal</h3>
+        <p style="font-size:.78rem;color:var(--muted);line-height:1.6">Este sistema utiliza <strong>dados fictícios</strong> gerados exclusivamente para fins de portfólio e demonstração técnica. Não constitui assessoria tributária. Consulte sempre um profissional habilitado.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- CONFIGURAÇÕES -->
+<section class="page" id="configuracoes">
+  <div class="ph">
+    <h2><i class="fa-solid fa-gear" style="color:var(--accent);font-size:1.1rem"></i> Configurações</h2>
+    <p>Personalize o sistema conforme as necessidades da sua empresa</p>
+  </div>
+  <div class="set-grid">
+    <div>
+      <div class="card" style="margin-bottom:16px">
+        <div class="set-section">
+          <h3><i class="fa-solid fa-building"></i> Dados da Empresa</h3>
+          <div class="lf"><label>Razão Social</label><input class="inp" style="width:100%" id="cfgEmpresa" value="MATRIZ INDÚSTRIA E COMÉRCIO S/A"></div>
+          <div class="lf" style="margin-top:10px"><label>CNPJ</label><input class="inp" style="width:100%" id="cfgCNPJ" value="12.345.678/0001-99"></div>
+          <div class="lf" style="margin-top:10px"><label>Regime Tributário</label>
+            <select class="inp" style="width:100%" id="cfgRegime"><option>Lucro Real</option><option>Lucro Presumido</option><option>Simples Nacional</option></select>
+          </div>
+          <div class="lf" style="margin-top:10px"><label>Competência de Referência</label>
+            <select class="inp" style="width:100%" id="cfgCompetencia">
+              <option>Janeiro/2024</option><option>Fevereiro/2024</option><option>Março/2024</option>
+              <option>Abril/2024</option><option>Maio/2024</option><option selected>Junho/2024</option>
+            </select>
+          </div>
+          <div style="margin-top:16px">
+            <button class="btn btn-p" onclick="saveConfig()"><i class="fa-solid fa-floppy-disk"></i> Salvar Configurações</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom:16px">
+        <div class="set-section">
+          <h3><i class="fa-solid fa-sliders"></i> Preferências do Sistema</h3>
+          <div class="set-row"><div><label>Modo Escuro</label><span>Alterna o tema da interface</span></div><label class="toggle-sw"><input type="checkbox" id="cfgDark" onchange="toggleDark()"><span class="sl"></span></label></div>
+          <div class="set-row"><div><label>Alertas de DARF</label><span>Notificar vencimentos próximos</span></div><label class="toggle-sw"><input type="checkbox" id="cfgAlerts" checked><span class="sl"></span></label></div>
+          <div class="set-row"><div><label>Log de Auditoria</label><span>Registrar todas as alterações</span></div><label class="toggle-sw"><input type="checkbox" id="cfgAudit" checked><span class="sl"></span></label></div>
+          <div class="set-row"><div><label>Animações</label><span>Contadores e transições animadas</span></div><label class="toggle-sw"><input type="checkbox" id="cfgAnim" checked><span class="sl"></span></label></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="set-section">
+          <h3><i class="fa-solid fa-users"></i> Usuários do Sistema</h3>
+          <div id="usersList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- AUDITORIA -->
+<section class="page" id="auditoria">
+  <div class="ph">
+    <h2><i class="fa-solid fa-shield-halved" style="color:var(--accent);font-size:1.1rem"></i> Log de Auditoria</h2>
+    <p>Registro completo de todas as ações realizadas no sistema</p>
+  </div>
+  <div class="card">
+    <div class="tbar">
+      <input class="inp" style="flex:1" placeholder="🔍  Filtrar por usuário, ação ou NF..." oninput="filterAudit(this.value)">
+      <select class="inp" style="max-width:150px" onchange="filterAuditAction(this.value)">
+        <option value="">Todas as ações</option>
+        <option value="login">Login/Logout</option>
+        <option value="import">Importação</option>
+        <option value="edit">Edição</option>
+        <option value="create">Criação</option>
+      </select>
+      <button class="btn btn-g btn-sm" onclick="exportAuditExcel()"><i class="fa-solid fa-file-excel"></i> Exportar</button>
+    </div>
+    <div class="tw">
+      <table>
+        <thead><tr><th>Data/Hora</th><th>Usuário</th><th>Perfil</th><th>Ação</th><th>Nota Fiscal</th><th>Detalhe</th></tr></thead>
+        <tbody id="auditBody"></tbody>
+      </table>
+    </div>
+    <div class="tfooter" id="auditCount"></div>
+  </div>
+</section>
+
+<!-- NOTIFICAÇÕES PANEL -->
+<div class="notif-overlay" id="notifOverlay" onclick="closeNotif()"></div>
+<div class="notif-panel" id="notifPanel">
+  <div class="notif-head">
+    <h3><i class="fa-solid fa-bell"></i> Notificações <span class="notif-badge" id="notifCount">0</span></h3>
+    <button class="notif-close" onclick="closeNotif()"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+  <div class="notif-list" id="notifList"></div>
+  <div style="padding:12px;border-top:1px solid var(--border)">
+    <button class="btn btn-out btn-sm" style="width:100%;justify-content:center" onclick="markAllRead()"><i class="fa-solid fa-check-double"></i> Marcar todas como lidas</button>
+  </div>
+</div>
+
+<!-- MODAL DETALHE -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModalOutside(event)">
+  <div class="modal" id="modalBox">
+    <div class="modal-head">
+      <h3 id="modalTitle">Detalhe da Nota Fiscal</h3>
+      <button class="modal-close" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<!-- TOOLTIP -->
+<div class="tip" id="tooltip"></div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"><i class="fa-solid fa-check-circle"></i><span id="toastMsg"></span></div>
+
+<script>
+// ═══════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════
+const notas = [
+  {id:1,numero:"001234",chave:"35240112345678000190550010000012341234567890",emissao:"08/01/2024",mes:0,prestador:"TECH SOLUÇÕES LTDA",cnpj:"12.345.678/0001-90",end:"Av. Paulista, 1000 — Bela Vista — São Paulo/SP",cnae:"6201-5/00",codServ:"14.01",regime:"Lucro Presumido",vl:50000,ir:750,iss:1500,pis:325,cof:1500,csll:500,inss:5500,status:"Conferida"},
+  {id:2,numero:"007891",chave:"35240198765432000176550010000078911234567891",emissao:"15/01/2024",mes:0,prestador:"CONSULTORIA GESTÃO S/A",cnpj:"98.765.432/0001-76",end:"Rua da Consolação, 500 — Consolação — São Paulo/SP",cnae:"7020-4/00",codServ:"17.01",regime:"Lucro Real",vl:120000,ir:1800,iss:6000,pis:780,cof:3600,csll:1200,inss:0,status:"Conferida"},
+  {id:3,numero:"002341",chave:"35240145678901000234550010000023411234567892",emissao:"22/01/2024",mes:0,prestador:"LIMPEZA TOTAL SERV. LTDA",cnpj:"45.678.901/0001-34",end:"Rua Vergueiro, 300 — Vila Mariana — São Paulo/SP",cnae:"8121-4/00",codServ:"7.10",regime:"Simples Nacional",vl:25000,ir:0,iss:750,pis:0,cof:0,csll:0,inss:2750,status:"Pendente"},
+  {id:4,numero:"003456",chave:"35240211122233000145550010000034561234567893",emissao:"05/02/2024",mes:1,prestador:"SEGURANÇA BRASIL EIRELI",cnpj:"11.122.233/0001-45",end:"Av. Rebouças, 800 — Pinheiros — São Paulo/SP",cnae:"8011-1/01",codServ:"11.02",regime:"Lucro Presumido",vl:80000,ir:800,iss:4000,pis:520,cof:2400,csll:800,inss:8800,status:"Conferida"},
+  {id:5,numero:"004567",chave:"35240233344455000167550010000045671234567894",emissao:"14/02/2024",mes:1,prestador:"ADVOCACIA MENDES & ASSOC.",cnpj:"33.344.455/0001-67",end:"Rua Boa Vista, 250 — Centro — São Paulo/SP",cnae:"6911-7/01",codServ:"17.14",regime:"Lucro Presumido",vl:35000,ir:525,iss:1750,pis:227.50,cof:1050,csll:350,inss:0,status:"Conferida"},
+  {id:6,numero:"005678",chave:"35240266677788000189550010000056781234567895",emissao:"27/02/2024",mes:1,prestador:"MANUTENÇÃO PREDIAL LTDA",cnpj:"66.677.788/0001-89",end:"Av. Ibirapuera, 2000 — Moema — São Paulo/SP",cnae:"8129-0/00",codServ:"7.09",regime:"Lucro Real",vl:45000,ir:450,iss:1350,pis:292.50,cof:1350,csll:450,inss:4950,status:"Conferida"},
+  {id:7,numero:"006789",chave:"35240399900011000212550010000067891234567896",emissao:"08/03/2024",mes:2,prestador:"DESIGN CRIATIVO ME",cnpj:"99.900.011/0001-12",end:"Rua Haddock Lobo, 100 — Cerqueira César — São Paulo/SP",cnae:"7410-2/02",codServ:"1.05",regime:"Simples Nacional",vl:15000,ir:0,iss:300,pis:0,cof:0,csll:0,inss:0,status:"Conferida"},
+  {id:8,numero:"007890",chave:"35240322233344000234550010000078901234567897",emissao:"19/03/2024",mes:2,prestador:"CONTABILIDADE PREMIUM LTDA",cnpj:"22.233.344/0001-34",end:"Al. Santos, 700 — Jardim Paulista — São Paulo/SP",cnae:"6920-6/01",codServ:"17.19",regime:"Lucro Presumido",vl:28000,ir:420,iss:1400,pis:182,cof:840,csll:280,inss:0,status:"Conferida"},
+  {id:9,numero:"009012",chave:"35240355566677000256550010000090121234567898",emissao:"28/03/2024",mes:2,prestador:"LOGÍSTICA EXPRESS S/A",cnpj:"55.566.677/0001-56",end:"Rod. Anhanguera Km 18 — Osasco/SP",cnae:"5229-0/01",codServ:"16.01",regime:"Lucro Real",vl:95000,ir:950,iss:2850,pis:617.50,cof:2850,csll:950,inss:0,status:"Conferida"},
+  {id:10,numero:"010123",chave:"35240488899900000278550010000101231234567899",emissao:"10/04/2024",mes:3,prestador:"RH TALENTOS LTDA",cnpj:"88.899.900/0001-78",end:"Rua Funchal, 418 — Vila Olímpia — São Paulo/SP",cnae:"7810-8/00",codServ:"17.05",regime:"Lucro Presumido",vl:40000,ir:600,iss:2000,pis:260,cof:1200,csll:400,inss:4400,status:"Conferida"},
+  {id:11,numero:"011234",chave:"35240444455566000290550010000112341234567900",emissao:"18/04/2024",mes:3,prestador:"MARKETING DIGITAL AGÊNCIA",cnpj:"44.455.566/0001-90",end:"Rua Oscar Freire, 600 — Jardins — São Paulo/SP",cnae:"7311-4/00",codServ:"17.06",regime:"Simples Nacional",vl:22000,ir:0,iss:660,pis:0,cof:0,csll:0,inss:0,status:"Pendente"},
+  {id:12,numero:"012345",chave:"35240477788899000312550010000123451234567901",emissao:"30/04/2024",mes:3,prestador:"ENGENHARIA CIVIL CONSTR. LTDA",cnpj:"77.788.899/0001-12",end:"Av. Faria Lima, 3000 — Itaim Bibi — São Paulo/SP",cnae:"4120-4/00",codServ:"7.02",regime:"Lucro Presumido",vl:150000,ir:1500,iss:4500,pis:975,cof:4500,csll:1500,inss:16500,status:"Conferida"},
+  {id:13,numero:"013456",chave:"35240511133344000334550010000134561234567902",emissao:"09/05/2024",mes:4,prestador:"FACILITIES SERV. LTDA",cnpj:"11.133.344/0001-34",end:"Rua Bela Cintra, 900 — Consolação — São Paulo/SP",cnae:"8110-7/00",codServ:"7.10",regime:"Lucro Real",vl:60000,ir:600,iss:3000,pis:390,cof:1800,csll:600,inss:6600,status:"Conferida"},
+  {id:14,numero:"014567",chave:"35240566677788000356550010000145671234567903",emissao:"20/05/2024",mes:4,prestador:"TREINAMENTO CORP. LTDA",cnpj:"66.677.788/0001-56",end:"Alameda Jaú, 200 — Cerqueira César — São Paulo/SP",cnae:"8599-6/04",codServ:"8.02",regime:"Lucro Presumido",vl:18000,ir:270,iss:360,pis:117,cof:540,csll:180,inss:0,status:"Divergência"},
+  {id:15,numero:"015678",chave:"35240599900011000378550010000156781234567904",emissao:"29/05/2024",mes:4,prestador:"TRANSPORTES RÁPIDO S/A",cnpj:"99.900.011/0001-78",end:"Rod. Dutra Km 230 — São José dos Campos/SP",cnae:"4930-2/01",codServ:"16.01",regime:"Lucro Presumido",vl:75000,ir:750,iss:0,pis:487.50,cof:2250,csll:750,inss:0,status:"Conferida"},
+  {id:16,numero:"016789",chave:"35240622233344000390550010000167891234567905",emissao:"12/06/2024",mes:5,prestador:"SOFTWARE HOUSE LTDA",cnpj:"22.233.344/0001-90",end:"Av. Engenheiro Luís C. Berrini, 1500 — São Paulo/SP",cnae:"6202-3/00",codServ:"1.07",regime:"Lucro Presumido",vl:85000,ir:1275,iss:2550,pis:552.50,cof:2550,csll:850,inss:9350,status:"Conferida"},
+  {id:17,numero:"017890",chave:"35240655566677000412550010000178901234567906",emissao:"25/06/2024",mes:5,prestador:"JARDINAGEM E PAISAGISMO ME",cnpj:"55.566.677/0001-77",end:"Rua Clodomiro Amazonas, 400 — Itaim Bibi — São Paulo/SP",cnae:"8130-3/00",codServ:"7.11",regime:"Simples Nacional",vl:12000,ir:0,iss:360,pis:0,cof:0,csll:0,inss:1320,status:"Conferida"}
+];
+
+notas.forEach(n=>{n.tot=+(n.ir+n.iss+n.pis+n.cof+n.csll+n.inss).toFixed(2);n.liq=+(n.vl-n.tot).toFixed(2)});
+
+const MONTHS=['Jan','Fev','Mar','Abr','Mai','Jun'];
+const KEYS=['ir','iss','pis','cof','csll','inss'];
+const LABELS=['IR','ISS','PIS','COFINS','CSLL','INSS'];
+const CORES=['#ef5350','#1e88e5','#43a047','#fb8c00','#8e24aa','#00897b'];
+const charts={};
+let currentPeriod=-1;
+let filteredNotas=[...notas];
+let regimeFilter='';
+let searchQ='';
+
+// ═══ FORMAT ═══
+const R=v=>v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const fR=v=>v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const sum=(arr,k)=>arr.reduce((a,n)=>a+(n[k]||0),0);
+
+function regimeBadge(r){
+  if(r==='Lucro Presumido')return`<span class="bdg bdg-lp">Lucro Presumido</span>`;
+  if(r==='Lucro Real')return`<span class="bdg bdg-lr">Lucro Real</span>`;
+  return`<span class="bdg bdg-sn">Simples Nacional</span>`;
+}
+function statusBadge(s){
+  const m={Conferida:'conf',Pendente:'pend',Divergência:'div'};
+  return`<span class="bdg st-${m[s]||'conf'}">${s}</span>`;
+}
+
+// ═══ NAVIGATION ═══
+function nav(id,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+  if(id==='dashboard') refreshDashboard();
+}
+
+// ═══ DARK MODE ═══
+function toggleDark(){
+  const html=document.documentElement;
+  const dark=html.getAttribute('data-theme')==='dark';
+  html.setAttribute('data-theme',dark?'light':'dark');
+  document.getElementById('darkIcon').className=dark?'fa-solid fa-moon':'fa-solid fa-sun';
+  document.querySelector('.dark-toggle').querySelector('span') && (document.querySelector('.dark-toggle').lastElementChild.textContent=dark?'Modo Escuro':'Modo Claro');
+  Chart.defaults.color=dark?'#6c757d':'#8b949e';
+  Chart.defaults.borderColor=dark?'#e0e0e0':'#30363d';
+  refreshDashboard();
+}
+
+// ═══ ANIMATED COUNTER ═══
+function animCount(el,target,fmt,dur=900){
+  const start=performance.now();
+  const from=parseFloat(el.textContent.replace(/[^0-9.]/g,''))||0;
+  function tick(now){
+    const p=Math.min((now-start)/dur,1);
+    const e=1-Math.pow(1-p,3);
+    el.textContent=fmt(from+(target-from)*e);
+    if(p<1)requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+// ═══ PERIOD FILTER ═══
+function buildPeriodBar(){
+  const bar=document.getElementById('periodBar');
+  const periods=[{l:'Todos',v:-1},{l:'Jan',v:0},{l:'Fev',v:1},{l:'Mar',v:2},{l:'Abr',v:3},{l:'Mai',v:4},{l:'Jun',v:5},{l:'1º Tri',v:90},{l:'2º Tri',v:91}];
+  bar.innerHTML=periods.map(p=>`<button class="period-btn${p.v===currentPeriod?' active':''}" onclick="setPeriod(${p.v},this)">${p.l}</button>`).join('');
+}
+function setPeriod(v,btn){
+  currentPeriod=v;
+  document.querySelectorAll('.period-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  refreshDashboard();
+}
+function getPeriodNotas(){
+  if(currentPeriod===-1)return notas;
+  if(currentPeriod===90)return notas.filter(n=>n.mes<=2);
+  if(currentPeriod===91)return notas.filter(n=>n.mes>=3);
+  return notas.filter(n=>n.mes===currentPeriod);
+}
+
+// ═══ DASHBOARD ═══
+function refreshDashboard(){
+  const d=getPeriodNotas();
+  animCount(document.getElementById('kNF'),d.length,v=>Math.round(v).toString());
+  animCount(document.getElementById('kVL'),sum(d,'vl'),R);
+  animCount(document.getElementById('kIR'),sum(d,'ir'),R);
+  animCount(document.getElementById('kISS'),sum(d,'iss'),R);
+  animCount(document.getElementById('kPIS'),sum(d,'pis'),R);
+  animCount(document.getElementById('kCOF'),sum(d,'cof'),R);
+  animCount(document.getElementById('kCSLL'),sum(d,'csll'),R);
+  animCount(document.getElementById('kINSS'),sum(d,'inss'),R);
+  animCount(document.getElementById('kTOT'),sum(d,'tot'),R);
+  buildPie(d); buildBar(d); buildLine(d); buildTop(d);
+}
+
+function destroyChart(k){if(charts[k]){charts[k].destroy();charts[k]=null}}
+
+function buildPie(d){
+  destroyChart('pie');
+  charts.pie=new Chart(document.getElementById('cPie'),{
+    type:'doughnut',
+    data:{labels:LABELS,datasets:[{data:KEYS.map(k=>sum(d,k)),backgroundColor:CORES,borderWidth:2,borderColor:getComputedStyle(document.documentElement).getPropertyValue('--card')}]},
+    options:{responsive:true,cutout:'60%',plugins:{legend:{position:'bottom',labels:{font:{size:10},padding:8}}}}
+  });
+}
+
+function buildBar(d){
+  destroyChart('bar');
+  charts.bar=new Chart(document.getElementById('cBar'),{
+    type:'bar',
+    data:{labels:MONTHS,datasets:KEYS.map((k,i)=>({label:LABELS[i],data:MONTHS.map((_,mi)=>notas.filter(n=>n.mes===mi).reduce((a,n)=>a+n[k],0)),backgroundColor:CORES[i],borderRadius:3}))},
+    options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:9},padding:6}}},scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,ticks:{callback:v=>'R$'+v.toLocaleString('pt-BR')}}}}
+  });
+}
+
+function buildLine(d){
+  destroyChart('line');
+  charts.line=new Chart(document.getElementById('cLine'),{
+    type:'line',
+    data:{labels:MONTHS,datasets:[
+      {label:'Valor Bruto',data:MONTHS.map((_,i)=>notas.filter(n=>n.mes===i).reduce((a,n)=>a+n.vl,0)),borderColor:'#1565c0',backgroundColor:'rgba(21,101,192,.07)',tension:.4,pointRadius:4,fill:true},
+      {label:'Total Retido',data:MONTHS.map((_,i)=>notas.filter(n=>n.mes===i).reduce((a,n)=>a+n.tot,0)),borderColor:'#c62828',backgroundColor:'rgba(198,40,40,.06)',tension:.4,pointRadius:4,fill:true,borderDash:[5,3]}
+    ]},
+    options:{responsive:true,plugins:{legend:{position:'bottom',labels:{font:{size:10}}}},scales:{y:{ticks:{callback:v=>'R$'+v.toLocaleString('pt-BR')}}}}
+  });
+}
+
+function buildTop(d){
+  destroyChart('top');
+  const byPrest={};
+  notas.forEach(n=>{byPrest[n.prestador]=(byPrest[n.prestador]||0)+n.tot});
+  const sorted=Object.entries(byPrest).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  charts.top=new Chart(document.getElementById('cTop'),{
+    type:'bar',
+    data:{labels:sorted.map(e=>e[0].split(' ').slice(0,2).join(' ')),datasets:[{label:'Total Retido',data:sorted.map(e=>e[1]),backgroundColor:'#1565c0',borderRadius:4}]},
+    options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{callback:v=>'R$'+v.toLocaleString('pt-BR')}},y:{grid:{display:false}}}}
+  });
+}
+
+// ═══ NOTAS TABLE ═══
+function applyFilters(){
+  filteredNotas=notas.filter(n=>{
+    const q=searchQ.toLowerCase();
+    const ok=!q||n.prestador.toLowerCase().includes(q)||n.cnpj.includes(q)||n.numero.includes(q)||n.codServ.includes(q)||n.cnae.includes(q);
+    const rok=!regimeFilter||n.regime===regimeFilter;
+    return ok&&rok;
+  });
+  renderNotas();
+}
+function filterNotas(v){searchQ=v;applyFilters()}
+function filterRegime(v){regimeFilter=v;applyFilters()}
+
+function renderNotas(){
+  const tbody=document.getElementById('notasBody');
+  tbody.innerHTML=filteredNotas.map(n=>`
+    <tr onclick="openModal(${n.id})">
+      <td>${n.numero}</td>
+      <td>${n.emissao}</td>
+      <td style="font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis">${n.prestador}</td>
+      <td>${n.cnpj}</td>
+      <td>${n.cnae}</td>
+      <td>${n.codServ}</td>
+      <td>${regimeBadge(n.regime)}</td>
+      <td class="num" style="font-weight:600" data-tip="Valor bruto do serviço">${fR(n.vl)}</td>
+      <td class="num" style="color:#c62828" data-tip="IR: 1,5% — Cód. DARF 6147 — IN RFB 1.234/12">${fR(n.ir)}</td>
+      <td class="num" style="color:#0277bd" data-tip="ISS: ${n.regime==='Simples Nacional'?'retido conforme lei municipal':'conforme LC 116/2003'}">${fR(n.iss)}</td>
+      <td class="num" style="color:#2e7d32" data-tip="PIS: 0,65% — Lei 10.833/2003">${fR(n.pis)}</td>
+      <td class="num" style="color:#e65100" data-tip="COFINS: 3% — Lei 10.833/2003">${fR(n.cof)}</td>
+      <td class="num" style="color:#6a1b9a" data-tip="CSLL: 1% — Lei 10.833/2003">${fR(n.csll)}</td>
+      <td class="num" style="color:#00695c" data-tip="INSS: 11% cessão mão de obra — Lei 8.212/1991">${fR(n.inss)}</td>
+      <td class="num" style="font-weight:700">${fR(n.tot)}</td>
+      <td class="num" style="color:var(--accent);font-weight:600">${fR(n.liq)}</td>
+      <td onclick="event.stopPropagation()">
+        <select class="st-sel ${stClass(n.status)}" onchange="changeStatus(${n.id},this)">
+          <option ${n.status==='Conferida'?'selected':''}>Conferida</option>
+          <option ${n.status==='Pendente'?'selected':''}>Pendente</option>
+          <option ${n.status==='Divergência'?'selected':''}>Divergência</option>
+        </select>
+      </td>
+    </tr>`).join('');
+
+  // totals row
+  const tv=sum(filteredNotas,'vl'),tr=sum(filteredNotas,'ir'),ti=sum(filteredNotas,'iss');
+  const tp=sum(filteredNotas,'pis'),tc=sum(filteredNotas,'cof'),tcs=sum(filteredNotas,'csll');
+  const tin=sum(filteredNotas,'inss'),tt=sum(filteredNotas,'tot'),tl=sum(filteredNotas,'liq');
+  tbody.innerHTML+=`<tr style="background:var(--primary);color:#fff;font-weight:700">
+    <td colspan="7">TOTAL — ${filteredNotas.length} notas</td>
+    <td class="num">${fR(tv)}</td><td class="num">${fR(tr)}</td><td class="num">${fR(ti)}</td>
+    <td class="num">${fR(tp)}</td><td class="num">${fR(tc)}</td><td class="num">${fR(tcs)}</td>
+    <td class="num">${fR(tin)}</td><td class="num">${fR(tt)}</td><td class="num">${fR(tl)}</td><td></td></tr>`;
+  document.getElementById('notasCount').textContent=`Exibindo ${filteredNotas.length} de ${notas.length} notas — clique em uma linha para ver o detalhe completo`;
+}
+
+function stClass(s){return{Conferida:'st-conf',Pendente:'st-pend','Divergência':'st-div'}[s]||'st-conf'}
+
+function changeStatus(id,sel){
+  const n=notas.find(x=>x.id===id);
+  if(n){
+    const old=n.status;
+    n.status=sel.value;
+    sel.className=`st-sel ${stClass(sel.value)}`;
+    showToast(`Status da NF ${n.numero} atualizado: ${old} → ${n.status}`);
+    addAuditLog('edit',n.numero,`Status alterado: ${old} → ${n.status}`);
+    renderAudit();
+  }
+}
+
+// ═══ MODAL ═══
+function openModal(id){
+  const n=notas.find(x=>x.id===id);if(!n)return;
+  document.getElementById('modalTitle').textContent=`NF ${n.numero} — ${n.prestador}`;
+  document.getElementById('modalBody').innerHTML=`
+    <div class="modal-grid">
+      <div>
+        <div class="modal-field"><label>Prestador</label><span style="font-weight:700">${n.prestador}</span></div>
+        <div class="modal-field"><label>CNPJ</label><span>${n.cnpj}</span></div>
+        <div class="modal-field"><label>Endereço</label><span style="font-size:.82rem">${n.end}</span></div>
+        <div class="modal-field"><label>Regime Tributário</label>${regimeBadge(n.regime)}</div>
+        <div class="modal-field"><label>CNAE</label><span>${n.cnae}</span></div>
+        <div class="modal-field"><label>Código do Serviço</label><span>${n.codServ}</span></div>
+      </div>
+      <div>
+        <div class="modal-field"><label>Número da NF</label><span style="font-weight:700">${n.numero}</span></div>
+        <div class="modal-field"><label>Data de Emissão</label><span>${n.emissao}</span></div>
+        <div class="modal-field"><label>Status</label>${statusBadge(n.status)}</div>
+        <div class="modal-field"><label>Valor do Serviço</label><span style="font-size:1.15rem;font-weight:700;color:var(--accent)">${R(n.vl)}</span></div>
+        <div class="modal-field"><label>Valor Líquido</label><span style="font-size:1rem;font-weight:700;color:#2e7d32">${R(n.liq)}</span></div>
+      </div>
+    </div>
+    <div class="modal-field" style="margin-bottom:14px">
+      <label>Chave da NFSe <button class="copy-btn" onclick="copyChave('${n.chave}')"><i class="fa-solid fa-copy"></i> Copiar</button></label>
+      <div class="modal-chave">${n.chave}</div>
+    </div>
+    <div><label style="font-size:.68rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);display:block;margin-bottom:8px">Detalhamento dos Tributos Retidos</label>
+    <div class="modal-tax-grid">
+      <div class="tax-box tax-ir"><div class="tl">IR</div><div class="tv">${R(n.ir)}</div></div>
+      <div class="tax-box tax-iss"><div class="tl">ISS</div><div class="tv">${R(n.iss)}</div></div>
+      <div class="tax-box tax-pis"><div class="tl">PIS</div><div class="tv">${R(n.pis)}</div></div>
+      <div class="tax-box tax-cof"><div class="tl">COFINS</div><div class="tv">${R(n.cof)}</div></div>
+      <div class="tax-box tax-csll"><div class="tl">CSLL</div><div class="tv">${R(n.csll)}</div></div>
+      <div class="tax-box tax-inss"><div class="tl">INSS</div><div class="tv">${R(n.inss)}</div></div>
+    </div>
+    <div class="tax-box tax-tot" style="margin-top:10px;border-radius:8px;padding:10px;text-align:center">
+      <div class="tl" style="font-size:.75rem;font-weight:700;opacity:.8">TOTAL RETIDO</div>
+      <div class="tv" style="font-size:1.3rem">${R(n.tot)}</div>
+    </div></div>`;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+function closeModal(){document.getElementById('modalOverlay').classList.remove('open')}
+function closeModalOutside(e){if(e.target.id==='modalOverlay')closeModal()}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
+
+function copyChave(c){navigator.clipboard.writeText(c).then(()=>showToast('Chave da NFSe copiada!')).catch(()=>showToast('Chave: '+c))}
+
+// ═══ XML SIMULATION ═══
+const fakeXMLs=[
+  {numero:"018901",prestador:"CLOUD SERVICES BRASIL LTDA",cnpj:"33.444.555/0001-66",end:"Rua Fidêncio Ramos, 302 — Vila Olímpia — São Paulo/SP",cnae:"6311-9/00",codServ:"1.03",regime:"Lucro Real",vl:67000,ir:1005,iss:2010,pis:435.50,cof:2010,csll:670,inss:7370,status:"Conferida"},
+  {numero:"019012",prestador:"AUDITORIA & COMPLIANCE S/A",cnpj:"55.666.777/0001-88",end:"Av. Brigadeiro Faria Lima, 4440 — Itaim Bibi — SP",cnae:"6920-6/01",codServ:"17.19",regime:"Lucro Presumido",vl:42000,ir:630,iss:2100,pis:273,cof:1260,csll:420,inss:0,status:"Conferida"},
+];
+let xmlIdx=0;
+
+function dragOver(e){e.preventDefault();document.getElementById('xmlZone').classList.add('drag')}
+function dragLeave(){document.getElementById('xmlZone').classList.remove('drag')}
+function dropXML(e){e.preventDefault();dragLeave();startXML()}
+function processXML(inp){if(inp.files.length)startXML();inp.value=''}
+
+function startXML(){
+  const prog=document.getElementById('xmlProgress');
+  const bar=document.getElementById('xmlBar');
+  const log=document.getElementById('xmlLog');
+  prog.style.display='block';bar.style.width='0%';
+  const fake=fakeXMLs[xmlIdx%fakeXMLs.length]; xmlIdx++;
+  const steps=[
+    [200,'Lendo arquivo XML...'],
+    [500,'Validando estrutura NFS-e (ABRASF)...'],
+    [800,'Identificando CNPJ do prestador...'],
+    [1100,`Prestador: ${fake.prestador}`],
+    [1400,'Consultando regime tributário...'],
+    [1700,'Calculando retenções aplicáveis...'],
+    [2000,'Verificando código de serviço LC 116/2003...'],
+    [2400,'Nota fiscal importada com sucesso! ✓'],
+  ];
+  steps.forEach(([t,msg])=>{
+    setTimeout(()=>{
+      log.textContent=msg;
+      bar.style.width=(t/2400*100)+'%';
+    },t);
+  });
+  setTimeout(()=>{
+    const newNota={...fake,id:notas.length+1,chave:'35240622233344000390550010000167891234567'+String(notas.length).padStart(3,'0'),emissao:'02/07/2024',mes:6};
+    newNota.tot=+(newNota.ir+newNota.iss+newNota.pis+newNota.cof+newNota.csll+newNota.inss).toFixed(2);
+    newNota.liq=+(newNota.vl-newNota.tot).toFixed(2);
+    notas.push(newNota);
+    applyFilters();
+    prog.style.display='none';
+    showToast(`NF ${newNota.numero} importada — ${newNota.prestador}`);
+  },2600);
+}
+
+// ═══ LEGISLATION ACCORDION ═══
+function toggleLeg(h){
+  const b=h.nextElementSibling,ic=h.querySelector('i.fa-chevron-down');
+  const open=b.classList.toggle('open');
+  ic.style.transform=open?'rotate(180deg)':'';
+}
+
+// ═══ CONCILIATION ═══
+const concilData={
+  ct:{ir:sum(notas,'ir'),iss:sum(notas,'iss'),pis:sum(notas,'pis'),cof:sum(notas,'cof'),csll:sum(notas,'csll'),inss:sum(notas,'inss')},
+  fs:{ir:sum(notas,'ir')+150,iss:sum(notas,'iss'),pis:sum(notas,'pis')-32.50,cof:sum(notas,'cof'),csll:sum(notas,'csll'),inss:sum(notas,'inss')-440},
+  fn:{ir:sum(notas,'ir'),iss:sum(notas,'iss')-660,pis:sum(notas,'pis')-32.50,cof:sum(notas,'cof'),csll:sum(notas,'csll'),inss:sum(notas,'inss')-440}
+};
+
+function buildConcil(){
+  const{ct,fs,fn}=concilData;
+  KEYS.forEach(k=>{
+    const ks=k.toUpperCase();
+    document.getElementById('ct'+ks).textContent=R(ct[k]);
+    document.getElementById('fs'+ks).textContent=R(fs[k]);
+    document.getElementById('fn'+ks).textContent=R(fn[k]);
+  });
+  const tots=[ct,fs,fn].map(o=>Object.values(o).reduce((a,v)=>a+v,0));
+  document.getElementById('ctTOT').textContent=R(tots[0]);
+  document.getElementById('fsTOT').textContent=R(tots[1]);
+  document.getElementById('fnTOT').textContent=R(tots[2]);
+
+  const rows=LABELS.map((l,i)=>{
+    const k=KEYS[i],d1=+(ct[k]-fs[k]).toFixed(2),d2=+(fs[k]-fn[k]).toFixed(2);
+    const ok1=Math.abs(d1)<0.01,ok2=Math.abs(d2)<0.01;
+    const st=ok1&&ok2?['OK','sbdg-ok']:!ok1?['DIVERGÊNCIA','sbdg-nok']:['PENDENTE','sbdg-pend'];
+    return`<tr><td style="font-weight:700">${l}</td>
+      <td class="num">${fR(ct[k])}</td><td class="num">${fR(fs[k])}</td><td class="num">${fR(fn[k])}</td>
+      <td class="num ${ok1?'diff-ok':'diff-nok'}">${ok1?'—':(d1>0?'+':'')+fR(d1)}</td>
+      <td class="num ${ok2?'diff-ok':'diff-warn'}">${ok2?'—':(d2>0?'+':'')+fR(d2)}</td>
+      <td><span class="sbdg ${st[1]}">${st[0]}</span></td></tr>`;
+  });
+  document.getElementById('concilBody').innerHTML=rows.join('');
+}
+
+// ═══ DARF TABLE ═══
+function buildDarf(){
+  const jun=notas.filter(n=>n.mes===5);
+  const rows=[
+    ['IR (IRRF)','6147',sum(jun,'vl'),'1,50%',sum(jun,'ir'),'20/07/2024','Pago'],
+    ['CSLL','5987',sum(jun,'vl'),'1,00%',sum(jun,'csll'),'20/07/2024','Pago'],
+    ['PIS','5960',sum(jun,'vl'),'0,65%',sum(jun,'pis'),'20/07/2024','Pendente'],
+    ['COFINS','5952',sum(jun,'vl'),'3,00%',sum(jun,'cof'),'20/07/2024','Pago'],
+    ['ISS','ISS-SP',sum(jun,'vl'),'Variada',sum(jun,'iss'),'15/07/2024','Pendente'],
+    ['INSS (GPS 2631)','2631',sum(jun,'vl'),'11,00%',sum(jun,'inss'),'20/07/2024','Pago'],
+  ];
+  const cls={Pago:'sbdg-ok',Pendente:'sbdg-pend',Atrasado:'sbdg-nok'};
+  document.getElementById('darfBody').innerHTML=rows.map(r=>`<tr>
+    <td style="font-weight:600">${r[0]}</td><td style="font-family:monospace">${r[1]}</td>
+    <td class="num">${R(r[2])}</td><td class="num">${r[3]}</td>
+    <td class="num" style="font-weight:700">${R(r[4])}</td><td>${r[5]}</td>
+    <td><span class="sbdg ${cls[r[6]]||'sbdg-pend'}">${r[6]}</span></td></tr>`).join('');
+  const pending=rows.filter(r=>r[6]==='Pendente').length;
+  if(pending>0){document.getElementById('darfBadge').textContent=pending;document.getElementById('darfBadge').style.display=''}
+}
+
+// ═══ SOBRE ═══
+function buildSobre(){
+  const vl=sum(notas,'vl'),tot=sum(notas,'tot');
+  document.getElementById('sobreNF').textContent=notas.length;
+  document.getElementById('sobreVL').textContent=R(vl);
+  document.getElementById('sobreTOT').textContent=R(tot);
+  document.getElementById('sobrePCT').textContent=((tot/vl)*100).toFixed(1)+'%';
+}
+
+// ═══ TOOLTIP ═══
+const tip=document.getElementById('tooltip');
+document.addEventListener('mouseover',e=>{
+  const el=e.target.closest('[data-tip]');
+  if(el){tip.textContent=el.getAttribute('data-tip');tip.style.display='block'}
+});
+document.addEventListener('mousemove',e=>{
+  if(tip.style.display==='block'){
+    tip.style.left=(e.clientX+12)+'px';
+    tip.style.top=(e.clientY-36)+'px';
+  }
+});
+document.addEventListener('mouseout',e=>{if(!e.target.closest('[data-tip]'))tip.style.display='none'});
+
+// ═══ TOAST ═══
+function showToast(msg){
+  const t=document.getElementById('toast');
+  document.getElementById('toastMsg').textContent=msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// ═══ EXPORTS ═══
+function exportExcel(){
+  const hd=['Nº NF','Chave','Emissão','Prestador','CNPJ','Endereço','CNAE','Cód.','Regime','Vl. Serviço','IR','ISS','PIS','COFINS','CSLL','INSS','Total Retido','Vl. Líquido','Status'];
+  const rows=notas.map(n=>[n.numero,n.chave,n.emissao,n.prestador,n.cnpj,n.end,n.cnae,n.codServ,n.regime,n.vl,n.ir,n.iss,n.pis,n.cof,n.csll,n.inss,n.tot,n.liq,n.status]);
+  const ws=XLSX.utils.aoa_to_sheet([hd,...rows]);
+  ws['!cols']=[8,45,10,32,18,42,10,8,16,12,10,10,10,10,10,10,12,12,12].map(w=>({wch:w}));
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Notas Fiscais');
+  const s2=XLSX.utils.aoa_to_sheet([['Tributo','Valor'],['IR',sum(notas,'ir')],['ISS',sum(notas,'iss')],['PIS',sum(notas,'pis')],['COFINS',sum(notas,'cof')],['CSLL',sum(notas,'csll')],['INSS',sum(notas,'inss')],['TOTAL',sum(notas,'tot')]]);
+  XLSX.utils.book_append_sheet(wb,s2,'Resumo');
+  XLSX.writeFile(wb,'RetidosPRO_NFs.xlsx');
+  showToast('Planilha Excel exportada!');
+}
+
+function exportExcelConcil(){
+  const{ct,fs,fn}=concilData;
+  const rows=LABELS.map((l,i)=>{const k=KEYS[i];return[l,ct[k],fs[k],fn[k],+(ct[k]-fs[k]).toFixed(2),+(fs[k]-fn[k]).toFixed(2)]});
+  const ws=XLSX.utils.aoa_to_sheet([['Tributo','Contabilidade','Fiscal','Financeiro','Dif.Cont×Fisc','Dif.Fisc×Fin'],...rows]);
+  ws['!cols']=[{wch:12},{wch:15},{wch:15},{wch:15},{wch:15},{wch:15}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Conciliação');
+  XLSX.writeFile(wb,'RetidosPRO_Conciliacao.xlsx');showToast('Conciliação Excel exportada!');
+}
+
+function exportExcelPrestador(){
+  const m={};
+  notas.forEach(n=>{if(!m[n.cnpj]){m[n.cnpj]={nome:n.prestador,cnpj:n.cnpj,q:0,vl:0,tot:0}}m[n.cnpj].q++;m[n.cnpj].vl+=n.vl;m[n.cnpj].tot+=n.tot});
+  const rows=Object.values(m).map(p=>[p.nome,p.cnpj,p.q,+p.vl.toFixed(2),+p.tot.toFixed(2),((p.tot/p.vl)*100).toFixed(2)+'%']);
+  const ws=XLSX.utils.aoa_to_sheet([['Prestador','CNPJ','Qtd NFs','Valor Serviços','Total Retido','% Retenção'],...rows]);
+  ws['!cols']=[{wch:32},{wch:20},{wch:8},{wch:16},{wch:14},{wch:12}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Por Prestador');
+  XLSX.writeFile(wb,'RetidosPRO_Prestadores.xlsx');showToast('Planilha por prestador exportada!');
+}
+
+function exportPDFNotas(){
+  const{jsPDF}=window.jspdf;const doc=new jsPDF({orientation:'landscape'});
+  doc.setFillColor(26,35,126);doc.rect(0,0,297,18,'F');
+  doc.setTextColor(255,255,255);doc.setFontSize(12);doc.setFont('helvetica','bold');
+  doc.text('RetidosPRO — Notas Fiscais de Serviços',10,12);
+  doc.autoTable({startY:22,head:[['Nº NF','Emissão','Prestador','CNPJ','Regime','Vl. Serviço','IR','ISS','PIS','COFINS','CSLL','INSS','Total Ret.','Status']],
+    body:notas.map(n=>[n.numero,n.emissao,n.prestador.substring(0,26),n.cnpj,n.regime.replace('Lucro ','L.'),fR(n.vl),fR(n.ir),fR(n.iss),fR(n.pis),fR(n.cof),fR(n.csll),fR(n.inss),fR(n.tot),n.status]),
+    foot:[['TOTAL','','','','',fR(sum(notas,'vl')),fR(sum(notas,'ir')),fR(sum(notas,'iss')),fR(sum(notas,'pis')),fR(sum(notas,'cof')),fR(sum(notas,'csll')),fR(sum(notas,'inss')),fR(sum(notas,'tot')),'']],
+    headStyles:{fillColor:[26,35,126],fontSize:7},bodyStyles:{fontSize:7},footStyles:{fillColor:[55,71,79],textColor:[255,255,255],fontStyle:'bold',fontSize:7},
+    alternateRowStyles:{fillColor:[240,244,255]},margin:{left:5,right:5}});
+  doc.setFontSize(7);doc.setTextColor(130);doc.text(`Emitido em ${new Date().toLocaleDateString('pt-BR')}`,5,doc.internal.pageSize.height-4);
+  doc.save('RetidosPRO_NFs.pdf');showToast('PDF de notas exportado!');
+}
+
+function exportPDFGerencial(){
+  const{jsPDF}=window.jspdf;const doc=new jsPDF();
+  doc.setFillColor(26,35,126);doc.rect(0,0,210,24,'F');
+  doc.setTextColor(255,255,255);doc.setFontSize(14);doc.setFont('helvetica','bold');
+  doc.text('RetidosPRO — Relatório Gerencial',10,14);
+  doc.setFontSize(9);doc.setFont('helvetica','normal');doc.text('Jan – Jun / 2024',10,21);
+  doc.autoTable({startY:28,body:[['NFs Processadas',notas.length.toString()],['Valor Total Serviços',R(sum(notas,'vl'))],['IR Retido',R(sum(notas,'ir'))],['ISS Retido',R(sum(notas,'iss'))],['PIS Retido',R(sum(notas,'pis'))],['COFINS Retida',R(sum(notas,'cof'))],['CSLL Retida',R(sum(notas,'csll'))],['INSS Retido',R(sum(notas,'inss'))],['TOTAL RETIDO',R(sum(notas,'tot'))]],
+    bodyStyles:{fontSize:9},columnStyles:{0:{fontStyle:'bold',cellWidth:80},1:{halign:'right'}},alternateRowStyles:{fillColor:[240,244,255]},
+    didParseCell(d){if(d.row.index===8){d.cell.styles.fillColor=[26,35,126];d.cell.styles.textColor=[255,255,255];d.cell.styles.fontStyle='bold'}}});
+  doc.setFontSize(7);doc.setTextColor(150);doc.text('Dados fictícios — RetidosPRO v2.0',10,doc.internal.pageSize.height-6);
+  doc.save('RetidosPRO_Gerencial.pdf');showToast('PDF gerencial exportado!');
+}
+
+function exportPDFDarf(){
+  const{jsPDF}=window.jspdf;const doc=new jsPDF();
+  doc.setFillColor(26,35,126);doc.rect(0,0,210,22,'F');
+  doc.setTextColor(255,255,255);doc.setFontSize(13);doc.setFont('helvetica','bold');
+  doc.text('RetidosPRO — DARFs a Recolher',10,12);
+  doc.setFontSize(9);doc.setFont('helvetica','normal');doc.text('Competência: Jun/2024',10,19);
+  const jun=notas.filter(n=>n.mes===5);
+  doc.autoTable({startY:26,head:[['Tributo','Cód. DARF','Base Cálc.','Alíquota','Valor DARF','Vencimento','Situação']],
+    body:[['IR (IRRF)','6147',R(sum(jun,'vl')),'1,50%',R(sum(jun,'ir')),'20/07/2024','Pago'],['CSLL','5987',R(sum(jun,'vl')),'1,00%',R(sum(jun,'csll')),'20/07/2024','Pago'],['PIS','5960',R(sum(jun,'vl')),'0,65%',R(sum(jun,'pis')),'20/07/2024','Pendente'],['COFINS','5952',R(sum(jun,'vl')),'3,00%',R(sum(jun,'cof')),'20/07/2024','Pago'],['ISS','ISS-SP',R(sum(jun,'vl')),'Variada',R(sum(jun,'iss')),'15/07/2024','Pendente'],['INSS (GPS)','2631',R(sum(jun,'vl')),'11,00%',R(sum(jun,'inss')),'20/07/2024','Pago']],
+    headStyles:{fillColor:[26,35,126],fontSize:9},bodyStyles:{fontSize:9},alternateRowStyles:{fillColor:[240,244,255]},
+    didParseCell(d){if(d.section==='body'&&d.column.index===6){d.cell.styles.textColor=d.cell.raw==='Pago'?[46,125,50]:d.cell.raw==='Pendente'?[230,81,0]:[198,40,40];d.cell.styles.fontStyle='bold'}}});
+  doc.save('RetidosPRO_DARFs.pdf');showToast('PDF de DARFs exportado!');
+}
+
+// ═══ USERS & AUTH ═══
+const USERS=[
+  {id:1,name:'Diego Fiscal',email:'diego.fiscal.am@gmail.com',pass:'Curitib@2026',role:'admin',roleLabel:'Administrador',avatar:'DF',color:'#1565c0',
+   pages:['dashboard','notas','legislacao','relatorios','conciliacao','configuracoes','auditoria','sobre']},
+  {id:2,name:'Ana Lima',email:'ana.lima@empresa.com.br',pass:'Fiscal@2024',role:'fiscal',roleLabel:'Analista Fiscal',avatar:'AL',color:'#2e7d32',
+   pages:['dashboard','notas','legislacao','relatorios','sobre']},
+  {id:3,name:'Carlos Souza',email:'carlos@empresa.com.br',pass:'Contab@2024',role:'contabil',roleLabel:'Contador',avatar:'CS',color:'#6a1b9a',
+   pages:['dashboard','relatorios','conciliacao','configuracoes','sobre']},
+];
+let currentUser=null;
+
+function fillLogin(email,pass){
+  document.getElementById('loginEmail').value=email;
+  document.getElementById('loginPass').value=pass;
+}
+function togglePass(){
+  const inp=document.getElementById('loginPass');
+  const ic=document.getElementById('eyeIcon');
+  inp.type=inp.type==='password'?'text':'password';
+  ic.className=inp.type==='password'?'fa-solid fa-eye':'fa-solid fa-eye-slash';
+}
+function doLogin(){
+  const email=document.getElementById('loginEmail').value.trim();
+  const pass=document.getElementById('loginPass').value;
+  const errEl=document.getElementById('loginError');
+  const user=USERS.find(u=>u.email===email&&u.pass===pass);
+  if(!user){errEl.classList.add('show');return;}
+  errEl.classList.remove('show');
+  currentUser=user;
+  if(document.getElementById('rememberMe').checked) localStorage.setItem('rp_user',user.id);
+  applyUserSession();
+  addAuditLog('login','—',`Login realizado de ${email}`);
+}
+function doLogout(){
+  if(!confirm('Deseja sair do sistema?'))return;
+  addAuditLog('login','—','Logout realizado');
+  currentUser=null;
+  localStorage.removeItem('rp_user');
+  document.getElementById('loginScreen').style.display='flex';
+  document.getElementById('loginEmail').value='';
+  document.getElementById('loginPass').value='';
+}
+function applyUserSession(){
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('userAvatar').textContent=currentUser.avatar;
+  document.getElementById('userAvatar').style.background=currentUser.color;
+  document.getElementById('userName').textContent=currentUser.name;
+  document.getElementById('userRole').textContent=currentUser.roleLabel;
+  // Role-based nav visibility
+  document.querySelectorAll('.nav-btn[onclick]').forEach(btn=>{
+    const match=btn.getAttribute('onclick').match(/nav\('(\w+)'/);
+    if(!match)return;
+    const pg=match[1];
+    btn.style.display=currentUser.pages.includes(pg)?'':'none';
+  });
+  // Auto-navigate to first allowed page
+  const firstAllowed=currentUser.pages[0]||'dashboard';
+  const firstBtn=document.querySelector(`.nav-btn[onclick*="nav('${firstAllowed}'"]`);
+  if(firstBtn) nav(firstAllowed,firstBtn);
+}
+function tryAutoLogin(){
+  const saved=localStorage.getItem('rp_user');
+  if(saved){const u=USERS.find(x=>x.id==saved);if(u){currentUser=u;applyUserSession();return;}}
+  document.getElementById('loginScreen').style.display='flex';
+}
+// Enter key on login
+document.addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&document.getElementById('loginScreen').style.display!=='none') doLogin();
+});
+
+// ═══ NOTIFICATIONS ═══
+const notifData=[
+  {id:1,title:'DARF PIS — Vencimento em 2 dias',body:'Guia de recolhimento do PIS (cód. 5960) referente a Jun/2024 vence em 20/07/2024.',time:'Hoje, 09:14',unread:true,type:'alert'},
+  {id:2,title:'DARF ISS — Vencimento amanhã',body:'ISS de Jun/2024 referente ao Município de São Paulo vence em 15/07/2024.',time:'Hoje, 09:10',unread:true,type:'alert'},
+  {id:3,title:'NF importada com sucesso',body:'Nota Fiscal nº 016789 da SOFTWARE HOUSE LTDA foi importada e processada.',time:'Ontem, 14:32',unread:true,type:'info'},
+  {id:4,title:'Conciliação: divergência detectada',body:'Diferença de R$ 150,00 entre Contabilidade e Fiscal para o tributo IR.',time:'Ontem, 11:05',unread:false,type:'warn'},
+  {id:5,title:'Relatório mensal gerado',body:'Relatório gerencial de Junho/2024 exportado em PDF com sucesso.',time:'12/07/2024',unread:false,type:'info'},
+];
+function renderNotif(){
+  const unread=notifData.filter(n=>n.unread).length;
+  document.getElementById('notifCount').textContent=unread;
+  document.getElementById('notifDot').style.display=unread?'':'none';
+  const icons={alert:'fa-triangle-exclamation',info:'fa-circle-info',warn:'fa-circle-exclamation'};
+  const colors={alert:'#c62828',info:'#1565c0',warn:'#e65100'};
+  document.getElementById('notifList').innerHTML=notifData.map(n=>`
+    <div class="notif-item${n.unread?' unread':''}" onclick="readNotif(${n.id})">
+      <div class="ni-title"><i class="fa-solid ${icons[n.type]||'fa-bell'}" style="color:${colors[n.type]};margin-right:6px"></i>${n.title}</div>
+      <div class="ni-body">${n.body}</div>
+      <div class="ni-time"><i class="fa-regular fa-clock"></i> ${n.time}</div>
+    </div>`).join('');
+}
+function openNotif(){document.getElementById('notifPanel').classList.add('open');document.getElementById('notifOverlay').classList.add('open')}
+function closeNotif(){document.getElementById('notifPanel').classList.remove('open');document.getElementById('notifOverlay').classList.remove('open')}
+function readNotif(id){const n=notifData.find(x=>x.id===id);if(n){n.unread=false;renderNotif()}}
+function markAllRead(){notifData.forEach(n=>n.unread=false);renderNotif();showToast('Todas as notificações marcadas como lidas')}
+
+// ═══ AUDIT LOG ═══
+const auditLog=[];
+function addAuditLog(action,nf,detail){
+  if(!currentUser)return;
+  auditLog.unshift({
+    dt:new Date().toLocaleString('pt-BR'),
+    user:currentUser.name,role:currentUser.roleLabel,
+    action,nf,detail
+  });
+}
+let auditQ='';
+function filterAudit(v){auditQ=v;renderAudit()}
+function renderAudit(){
+  const filtered=auditLog.filter(l=>{
+    const q=auditQ.toLowerCase();
+    return!q||l.user.toLowerCase().includes(q)||l.action.includes(q)||l.nf.includes(q)||l.detail.toLowerCase().includes(q);
+  });
+  const actionClass={login:'audit-action-login',edit:'audit-action-edit',import:'audit-action-import',create:'audit-action-create'};
+  document.getElementById('auditBody').innerHTML=filtered.length?filtered.map(l=>`
+    <tr>
+      <td style="white-space:nowrap">${l.dt}</td>
+      <td style="font-weight:600">${l.user}</td>
+      <td><span class="role-chip role-${l.role==='Administrador'?'admin':l.role==='Analista Fiscal'?'fiscal':'contabil'}">${l.role}</span></td>
+      <td><span class="${actionClass[l.action]||''}">${l.action}</span></td>
+      <td>${l.nf}</td>
+      <td>${l.detail}</td>
+    </tr>`).join('')
+    :'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">Nenhum registro de auditoria encontrado.</td></tr>';
+  document.getElementById('auditCount').textContent=`${filtered.length} registros`;
+}
+function exportAuditExcel(){
+  const ws=XLSX.utils.aoa_to_sheet([['Data/Hora','Usuário','Perfil','Ação','NF','Detalhe'],...auditLog.map(l=>[l.dt,l.user,l.role,l.action,l.nf,l.detail])]);
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Auditoria');
+  XLSX.writeFile(wb,'RetidosPRO_Auditoria.xlsx');showToast('Log de auditoria exportado!');
+}
+
+// ═══ SETTINGS ═══
+function saveConfig(){
+  const data={empresa:document.getElementById('cfgEmpresa').value,cnpj:document.getElementById('cfgCNPJ').value,regime:document.getElementById('cfgRegime').value,competencia:document.getElementById('cfgCompetencia').value};
+  localStorage.setItem('rp_config',JSON.stringify(data));
+  addAuditLog('edit','—','Configurações do sistema atualizadas');
+  showToast('Configurações salvas com sucesso!');
+}
+function buildConfigUsers(){
+  const el=document.getElementById('usersList');
+  if(!el)return;
+  el.innerHTML=USERS.map(u=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+      <span class="avatar" style="background:${u.color}">${u.avatar}</span>
+      <div style="flex:1"><div style="font-size:.845rem;font-weight:600;color:var(--text)">${u.name}</div><div style="font-size:.75rem;color:var(--muted)">${u.email}</div></div>
+      <span class="role-chip role-${u.role==='admin'?'admin':u.role==='fiscal'?'fiscal':'contabil'}">${u.roleLabel}</span>
+    </div>`).join('');
+}
+
+// ═══ INIT ═══
+document.addEventListener('DOMContentLoaded',()=>{
+  buildPeriodBar();
+  buildConcil();
+  buildDarf();
+  buildSobre();
+  renderNotif();
+  buildConfigUsers();
+  renderAudit();
+  // Seed some audit entries for demo
+  currentUser=USERS[0];
+  addAuditLog('login','—','Login realizado — diego.fiscal.am@gmail.com');
+  addAuditLog('import','016789','NF importada via XML — SOFTWARE HOUSE LTDA');
+  addAuditLog('edit','014567','Status alterado: Conferida → Divergência');
+  addAuditLog('create','018901','Nova NF importada via XML drag & drop');
+  currentUser=USERS[1];
+  addAuditLog('login','—','Login realizado — ana.lima@empresa.com.br');
+  addAuditLog('edit','003456','Status alterado: Pendente → Conferida');
+  currentUser=null;
+  renderAudit();
+  tryAutoLogin();
+});
+</script>
+</body>
+</html>
